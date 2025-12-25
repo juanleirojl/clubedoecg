@@ -182,3 +182,31 @@
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
 }
+
+/* ECG Animation - Compatible with all browsers including Safari iOS */
+.ecg-moving {
+  animation: ecg-scroll 1.5s linear infinite;
+  -webkit-animation: ecg-scroll 1.5s linear infinite;
+}
+
+@keyframes ecg-scroll {
+  0% {
+    transform: translateX(0);
+    -webkit-transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-30px);
+    -webkit-transform: translateX(-30px);
+  }
+}
+
+@-webkit-keyframes ecg-scroll {
+  0% {
+    -webkit-transform: translateX(0);
+    transform: translateX(0);
+  }
+  100% {
+    -webkit-transform: translateX(-30px);
+    transform: translateX(-30px);
+  }
+}

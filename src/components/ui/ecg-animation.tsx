@@ -1,68 +1,7 @@
 "use client"
 
-export function ECGAnimation({ className = "" }: { className?: string }) {
-  return (
-    <div className={`relative overflow-hidden ${className}`}>
-      <svg
-        viewBox="0 0 100 40"
-        className="w-full h-full"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        {/* Traçado de ECG animado */}
-        <path
-          d="M0,20 L15,20 L18,20 L20,10 L22,30 L24,5 L26,35 L28,20 L32,20 L35,18 L38,22 L40,20 L100,20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="ecg-line"
-        />
-        {/* Segundo traçado para loop contínuo */}
-        <path
-          d="M0,20 L15,20 L18,20 L20,10 L22,30 L24,5 L26,35 L28,20 L32,20 L35,18 L38,22 L40,20 L100,20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="ecg-line ecg-line-2"
-        />
-      </svg>
-      
-      <style jsx>{`
-        .ecg-line {
-          stroke-dasharray: 200;
-          stroke-dashoffset: 200;
-          animation: ecg-draw 2s linear infinite;
-        }
-        
-        .ecg-line-2 {
-          animation-delay: 1s;
-        }
-        
-        @keyframes ecg-draw {
-          0% {
-            stroke-dashoffset: 200;
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
-          }
-          90% {
-            opacity: 1;
-          }
-          100% {
-            stroke-dashoffset: 0;
-            opacity: 0;
-          }
-        }
-      `}</style>
-    </div>
-  )
-}
-
-// Versão alternativa com traçado contínuo movendo-se da direita para a esquerda
+// Versão com traçado contínuo movendo-se da direita para a esquerda
+// Usa CSS global para compatibilidade com Safari iOS
 export function ECGAnimationContinuous({ className = "" }: { className?: string }) {
   return (
     <div className={`relative overflow-hidden ${className}`}>
@@ -78,7 +17,7 @@ export function ECGAnimationContinuous({ className = "" }: { className?: string 
         </defs>
         
         <g clipPath="url(#ecg-clip)">
-          {/* Traçado principal que se move */}
+          {/* Traçado principal que se move - usa classe CSS global */}
           <g className="ecg-moving">
             {/* Primeiro conjunto de batimentos */}
             <path
@@ -110,22 +49,9 @@ export function ECGAnimationContinuous({ className = "" }: { className?: string 
           </g>
         </g>
       </svg>
-      
-      <style jsx>{`
-        .ecg-moving {
-          animation: ecg-scroll 1.5s linear infinite;
-        }
-        
-        @keyframes ecg-scroll {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-30px);
-          }
-        }
-      `}</style>
     </div>
   )
 }
 
+// Alias para compatibilidade
+export const ECGAnimation = ECGAnimationContinuous
