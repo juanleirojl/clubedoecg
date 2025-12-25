@@ -20,11 +20,12 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { QuizQuestion } from "@/types"
 
-// Dynamic import do ReactPlayer com tipagem correta
+// Dynamic import do ReactPlayer
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ReactPlayer = dynamic(
   () => import("react-player").then((mod) => mod.default),
   { ssr: false }
-)
+) as any
 
 interface QuizPlayerProps {
   title: string
