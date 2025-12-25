@@ -21,7 +21,6 @@ interface LessonWithModule extends Lesson {
       slug: string
     }
   }
-  is_free?: boolean
 }
 
 export default function LessonPage({ 
