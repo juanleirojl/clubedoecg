@@ -140,3 +140,5 @@ export function CourseCardNew({ course }: CourseCardNewProps) {
   )
 }
 
+
+

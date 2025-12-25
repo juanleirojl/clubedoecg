@@ -99,3 +99,5 @@ CREATE POLICY "Admins can delete course_resources" ON public.course_resources
 -- PRONTO! Agora recarregue a página /admin
 -- =============================================
 
+
+

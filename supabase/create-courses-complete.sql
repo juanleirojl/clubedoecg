@@ -157,3 +157,5 @@ SELECT c.title, c.difficulty,
 FROM public.courses c
 ORDER BY c.created_at;
 
+
+

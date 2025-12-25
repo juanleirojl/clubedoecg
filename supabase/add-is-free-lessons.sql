@@ -21,3 +21,5 @@ FROM information_schema.columns
 WHERE table_name = 'lessons' AND table_schema = 'public'
 ORDER BY ordinal_position;
 
+
+

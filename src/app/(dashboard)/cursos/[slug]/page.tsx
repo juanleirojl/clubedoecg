@@ -1,6 +1,6 @@
 "use client"
 
-import { use } from "react"
+import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { 
@@ -13,96 +13,190 @@ import {
   CheckCircle2,
   Award,
   Lock,
-  ChevronDown,
   FileText,
-  Video
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { BeltBadge } from "@/components/courses/belt-icon"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
 
-// Mock data no estilo Medmastery
-const mockCourse = {
-  id: "1",
-  title: "ECG: Faixa Branca",
-  slug: "ecg-faixa-branca",
-  description: "Este curso prático ensina todos os fundamentos do ECG que você precisa para ir de iniciante a praticante confiante em poucas horas! Aprenda a diagnosticar problemas cardíacos importantes como infarto do miocárdio, hipertrofia e sobrecarga de volume.",
-  thumbnail_url: "https://images.unsplash.com/photo-1559757175-5700dde675bc?w=800",
-  trailer_url: "https://vimeo.com/999233514",
-  belt: "white" as const,
-  instructor: {
-    name: "Dr. Juan Lorenzo",
-    title: "Cardiologista, Especialista em ECG",
-    bio: "Juan é o fundador do Clube do ECG. Ele é cardiologista com especialização em eletrocardiografia e mestre em educação médica.",
-    avatar_url: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200",
-  },
-  stats: {
-    lessons: 24,
-    quizzes: 13,
-    duration_hours: 3,
-    duration_minutes: 45,
-  },
-  progress: 35,
-  chapters: [
-    {
-      id: "ch1",
-      title: "Nível 1: A Curva do ECG",
-      description: "Vamos começar com o ABC do ECG. Desmembramos os componentes do traçado para você construir uma compreensão dos conceitos avançados.",
-      is_free: true,
-      lessons: [
-        { id: "l1", title: "Identificando componentes do complexo QRS", duration: "9:41", type: "video", completed: true },
-        { id: "l2", title: "Revisando exemplos de ECGs complexos", duration: "3:27", type: "video", completed: true },
-      ],
-      quiz: { id: "q1", title: "Quiz: Fundamentos do ECG", completed: true, score: 85 },
-    },
-    {
-      id: "ch2",
-      title: "Nível 2: Frequência e Ritmo",
-      description: "Aprenda a calcular a frequência cardíaca e identificar os ritmos normais e anormais.",
-      is_free: false,
-      lessons: [
-        { id: "l3", title: "Calculando a frequência cardíaca", duration: "7:22", type: "video", completed: true },
-        { id: "l4", title: "Ritmo sinusal normal", duration: "5:15", type: "video", completed: false },
-        { id: "l5", title: "Arritmias sinusais", duration: "8:33", type: "video", completed: false },
-      ],
-      quiz: { id: "q2", title: "Quiz: Frequência e Ritmo", completed: false },
-    },
-    {
-      id: "ch3",
-      title: "Nível 3: Eixo Elétrico",
-      description: "Domine o conceito de eixo elétrico e aprenda a identificar desvios.",
-      is_free: false,
-      lessons: [
-        { id: "l6", title: "O que é o eixo elétrico?", duration: "6:45", type: "video", completed: false },
-        { id: "l7", title: "Desvio de eixo para esquerda", duration: "5:30", type: "video", completed: false },
-        { id: "l8", title: "Desvio de eixo para direita", duration: "4:55", type: "video", completed: false },
-      ],
-      quiz: { id: "q3", title: "Quiz: Eixo Elétrico", completed: false },
-    },
-  ],
-  resources: [
-    { id: "r1", name: "Cheat Sheet - Método CAMPOS", type: "PDF", size: "2.4 MB" },
-    { id: "r2", name: "Workbook do Curso", type: "PDF", size: "5.1 MB" },
-    { id: "r3", name: "Casos Clínicos Extras", type: "PDF", size: "3.8 MB" },
-  ],
+// Tipos
+interface Lesson {
+  id: string
+  title: string
+  description: string
+  video_url: string
+  duration_seconds: number
+  order_index: number
+  is_free: boolean
+}
+
+interface Quiz {
+  id: string
+  title: string
+  description: string
+  order_index: number
+}
+
+interface Module {
+  id: string
+  title: string
+  description: string
+  order_index: number
+  lessons: Lesson[]
+  quizzes: Quiz[]
+}
+
+interface Course {
+  id: string
+  title: string
+  slug: string
+  description: string
+  teaser: string
+  thumbnail_url: string
+  trailer_url: string
+  difficulty: string
+  is_free: boolean
+  is_published: boolean
+  modules: Module[]
+}
+
+// Mapeia difficulty para belt
+function getBeltFromDifficulty(difficulty: string): "white" | "blue" | "black" {
+  switch (difficulty) {
+    case "iniciante":
+      return "white"
+    case "intermediario":
+      return "blue"
+    case "avancado":
+      return "black"
+    default:
+      return "white"
+  }
+}
+
+// Formatar duração
+function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${minutes}:${secs.toString().padStart(2, '0')}`
+}
+
+// Calcular estatísticas do curso
+function calculateStats(modules: Module[]) {
+  let totalLessons = 0
+  let totalQuizzes = 0
+  let totalSeconds = 0
+
+  modules.forEach(mod => {
+    totalLessons += mod.lessons?.length || 0
+    totalQuizzes += mod.quizzes?.length || 0
+    mod.lessons?.forEach(lesson => {
+      totalSeconds += lesson.duration_seconds || 0
+    })
+  })
+
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+
+  return { totalLessons, totalQuizzes, hours, minutes }
 }
 
 export default function CoursePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
-  const course = mockCourse
+  const [course, setCourse] = useState<Course | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const completedLessons = course.chapters.reduce((acc, ch) => 
-    acc + ch.lessons.filter(l => l.completed).length, 0
-  )
-  const totalLessons = course.chapters.reduce((acc, ch) => acc + ch.lessons.length, 0)
+  useEffect(() => {
+    async function fetchCourse() {
+      const supabase = createClient()
+      
+      // Buscar curso com módulos, aulas e quizzes
+      const { data, error } = await supabase
+        .from("courses")
+        .select(`
+          *,
+          modules (
+            *,
+            lessons (*),
+            quizzes (*)
+          )
+        `)
+        .eq("slug", slug)
+        .single()
+
+      if (error) {
+        console.error("Erro ao buscar curso:", error)
+        setError("Curso não encontrado")
+        setIsLoading(false)
+        return
+      }
+
+      // Ordenar módulos, aulas e quizzes
+      if (data?.modules) {
+        data.modules.sort((a: Module, b: Module) => a.order_index - b.order_index)
+        data.modules.forEach((mod: Module) => {
+          if (mod.lessons) {
+            mod.lessons.sort((a: Lesson, b: Lesson) => a.order_index - b.order_index)
+          }
+          if (mod.quizzes) {
+            mod.quizzes.sort((a: Quiz, b: Quiz) => a.order_index - b.order_index)
+          }
+        })
+      }
+
+      setCourse(data)
+      setIsLoading(false)
+    }
+
+    fetchCourse()
+  }, [slug])
+
+  // Loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span>Carregando curso...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Erro
+  if (error || !course) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold">{error || "Curso não encontrado"}</h2>
+          <Link href="/cursos">
+            <Button className="mt-4">Voltar aos cursos</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const belt = getBeltFromDifficulty(course.difficulty)
+  const stats = calculateStats(course.modules || [])
+
+  // Instructor info (fixo por enquanto)
+  const instructor = {
+    name: "Dr. Juan Lorenzo",
+    title: "Cardiologista, Especialista em ECG",
+    bio: "Juan é o fundador do Clube do ECG. Ele é cardiologista com especialização em eletrocardiografia e mestre em educação médica.",
+    avatar_url: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200",
+  }
 
   return (
     <div className="min-h-screen bg-background animate-fade-in">
-      {/* Header do Curso - Estilo Medmastery */}
+      {/* Header do Curso */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-6">
           {/* Back */}
@@ -116,8 +210,11 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
             <div className="space-y-4">
               {/* Belt Badge */}
               <div className="flex items-center gap-3">
-                <BeltBadge belt={course.belt} />
+                <BeltBadge belt={belt} />
                 <Badge variant="outline">Português</Badge>
+                {course.is_free && (
+                  <Badge className="bg-green-500 text-white">GRÁTIS</Badge>
+                )}
               </div>
 
               {/* Title */}
@@ -130,34 +227,34 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
                 <span className="text-muted-foreground">por</span>
                 <div className="flex items-center gap-2">
                   <Image
-                    src={course.instructor.avatar_url}
-                    alt={course.instructor.name}
+                    src={instructor.avatar_url}
+                    alt={instructor.name}
                     width={32}
                     height={32}
                     className="rounded-full"
                   />
-                  <span className="font-medium text-primary">{course.instructor.name}</span>
+                  <span className="font-medium text-primary">{instructor.name}</span>
                 </div>
               </div>
 
               {/* Description */}
               <p className="text-muted-foreground leading-relaxed">
-                {course.description}
+                {course.description || course.teaser}
               </p>
 
               {/* Stats */}
               <div className="flex flex-wrap items-center gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-muted-foreground" />
-                  <span>{course.stats.lessons} Aulas</span>
+                  <span>{stats.totalLessons} Aulas</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Award className="w-5 h-5 text-yellow-500" />
-                  <span>{course.stats.quizzes} Quizzes</span>
+                  <span>{stats.totalQuizzes} Quizzes</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="w-5 h-5 text-muted-foreground" />
-                  <span>{course.stats.duration_hours}h {course.stats.duration_minutes}m</span>
+                  <span>{stats.hours}h {stats.minutes}m</span>
                 </div>
               </div>
 
@@ -165,7 +262,7 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
               <div className="flex items-center gap-3 pt-2">
                 <Button size="lg" className="bg-primary hover:bg-primary/90 px-8">
                   <Play className="w-5 h-5 mr-2" />
-                  Continuar Aprendendo
+                  Começar a Aprender
                 </Button>
                 <Button size="lg" variant="outline">
                   <Bookmark className="w-5 h-5" />
@@ -176,7 +273,7 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
             {/* Video Thumbnail */}
             <div className="relative aspect-video rounded-xl overflow-hidden shadow-lg group cursor-pointer">
               <Image
-                src={course.thumbnail_url}
+                src={course.thumbnail_url || "https://images.unsplash.com/photo-1559757175-5700dde675bc?w=800"}
                 alt={course.title}
                 fill
                 className="object-cover"
@@ -186,139 +283,135 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
                   <Play className="w-10 h-10 text-primary ml-1" />
                 </div>
               </div>
-              <div className="absolute bottom-4 left-4 flex items-center gap-2 text-white">
-                <Play className="w-4 h-4" />
-                <span className="text-sm font-medium">Assistir intro</span>
-              </div>
+              {course.trailer_url && (
+                <div className="absolute bottom-4 left-4 flex items-center gap-2 text-white">
+                  <Play className="w-4 h-4" />
+                  <span className="text-sm font-medium">Assistir intro</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* CTA Banner */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-bold mb-1">Desbloqueie este curso e mais de 50 outros</h3>
-              <p className="text-slate-300">Tenha acesso a todos os cursos premiados e se torne um expert em ECG.</p>
+      {!course.is_free && (
+        <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold mb-1">Desbloqueie este curso e mais de 50 outros</h3>
+                <p className="text-slate-300">Tenha acesso a todos os cursos premiados e se torne um expert em ECG.</p>
+              </div>
+              <Link href="/assinar">
+                <Button size="lg" variant="secondary" className="whitespace-nowrap">
+                  Assine o Clube
+                </Button>
+              </Link>
             </div>
-            <Button size="lg" variant="secondary" className="whitespace-nowrap">
-              Assine o Clube
-            </Button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Content - Chapters */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Progress Card */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold">Seu Progresso</h3>
-                  <span className="text-2xl font-bold text-primary">{course.progress}%</span>
-                </div>
-                <Progress value={course.progress} className="h-3 mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {completedLessons} de {totalLessons} aulas concluídas
-                </p>
-              </CardContent>
-            </Card>
-
             {/* Chapters */}
             <div>
               <h2 className="text-xl font-bold mb-4">O que você vai aprender</h2>
               
               <div className="space-y-4">
-                {course.chapters.map((chapter, index) => (
-                  <Card key={chapter.id} className="overflow-hidden">
-                    {/* Chapter Header */}
-                    <div className="p-4 bg-slate-50 border-b flex items-start justify-between">
-                      <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-sm">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold">{chapter.title}</h3>
+                {course.modules?.map((module, index) => {
+                  // Verificar se o módulo tem aulas gratuitas
+                  const hasFreeLessons = module.lessons?.some(l => l.is_free)
+                  
+                  return (
+                    <Card key={module.id} className="overflow-hidden">
+                      {/* Chapter Header */}
+                      <div className="p-4 bg-slate-50 border-b flex items-start justify-between">
+                        <div className="flex items-start gap-4">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-sm">
+                            {index + 1}
                           </div>
-                          <p className="text-sm text-muted-foreground">{chapter.description}</p>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {chapter.lessons.length} aulas, 1 quiz
-                          </p>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold">{module.title}</h3>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{module.description}</p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {module.lessons?.length || 0} aulas, {module.quizzes?.length || 0} quiz
+                            </p>
+                          </div>
                         </div>
+                        {hasFreeLessons && (
+                          <span className="free-badge">GRÁTIS</span>
+                        )}
                       </div>
-                      {chapter.is_free && (
-                        <span className="free-badge">GRÁTIS</span>
-                      )}
-                    </div>
 
-                    {/* Lessons */}
-                    <div className="divide-y">
-                      {chapter.lessons.map((lesson) => (
-                        <Link
-                          key={lesson.id}
-                          href={`/cursos/${slug}/aula/${lesson.id}`}
-                          className={cn(
-                            "flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors chapter-item",
-                            lesson.completed && "completed"
-                          )}
-                        >
-                          {lesson.completed ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                          ) : (
-                            <Play className="w-5 h-5 text-primary flex-shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className={cn(
-                              "text-sm font-medium truncate",
-                              lesson.completed && "text-muted-foreground"
-                            )}>
-                              {lesson.title}
-                            </p>
-                          </div>
-                          <span className="text-sm text-muted-foreground flex-shrink-0">
-                            {lesson.duration}
-                          </span>
-                        </Link>
-                      ))}
-
-                      {/* Quiz */}
-                      {chapter.quiz && (
-                        <Link
-                          href={`/cursos/${slug}/quiz/${chapter.quiz.id}`}
-                          className={cn(
-                            "flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors chapter-item bg-amber-50/50",
-                            chapter.quiz.completed && "completed"
-                          )}
-                        >
-                          {chapter.quiz.completed ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                          ) : (
-                            <Award className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">
-                              {chapter.quiz.title}
-                            </p>
-                          </div>
-                          {chapter.quiz.completed && chapter.quiz.score && (
-                            <span className="text-sm font-medium text-green-600">
-                              {chapter.quiz.score}%
+                      {/* Lessons */}
+                      <div className="divide-y">
+                        {module.lessons?.map((lesson) => (
+                          <Link
+                            key={lesson.id}
+                            href={`/cursos/${slug}/aula/${lesson.id}`}
+                            className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors"
+                          >
+                            {lesson.is_free ? (
+                              <Play className="w-5 h-5 text-primary flex-shrink-0" />
+                            ) : (
+                              <Lock className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {lesson.title}
+                              </p>
+                              {lesson.is_free && (
+                                <span className="text-xs text-green-600 font-medium">Gratuita</span>
+                              )}
+                            </div>
+                            <span className="text-sm text-muted-foreground flex-shrink-0">
+                              {formatDuration(lesson.duration_seconds || 0)}
                             </span>
-                          )}
-                          <Badge variant="secondary" className="text-xs">
-                            Quiz
-                          </Badge>
-                        </Link>
-                      )}
-                    </div>
+                          </Link>
+                        ))}
+
+                        {/* Quizzes */}
+                        {module.quizzes?.map((quiz) => (
+                          <Link
+                            key={quiz.id}
+                            href={`/cursos/${slug}/quiz/${quiz.id}`}
+                            className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors bg-amber-50/50"
+                          >
+                            <Award className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium">
+                                {quiz.title}
+                              </p>
+                            </div>
+                            <Badge variant="secondary" className="text-xs">
+                              Quiz
+                            </Badge>
+                          </Link>
+                        ))}
+                      </div>
+                    </Card>
+                  )
+                })}
+
+                {/* Se não houver módulos */}
+                {(!course.modules || course.modules.length === 0) && (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="font-semibold mb-2">Conteúdo em breve</h3>
+                      <p className="text-muted-foreground">
+                        Os módulos deste curso estão sendo preparados.
+                      </p>
+                    </CardContent>
                   </Card>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -331,53 +424,40 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
                 <h3 className="font-semibold mb-4">Professor do Curso</h3>
                 <div className="flex items-start gap-4">
                   <Image
-                    src={course.instructor.avatar_url}
-                    alt={course.instructor.name}
+                    src={instructor.avatar_url}
+                    alt={instructor.name}
                     width={64}
                     height={64}
                     className="rounded-full"
                   />
                   <div>
-                    <p className="font-semibold text-primary">{course.instructor.name}</p>
-                    <p className="text-sm text-muted-foreground">{course.instructor.title}</p>
+                    <p className="font-semibold text-primary">{instructor.name}</p>
+                    <p className="text-sm text-muted-foreground">{instructor.title}</p>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-4">
-                  {course.instructor.bio}
+                  {instructor.bio}
                 </p>
-              </CardContent>
-            </Card>
-
-            {/* Resources */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold mb-4">Materiais do Curso</h3>
-                <div className="space-y-3">
-                  {course.resources.map((resource) => (
-                    <button
-                      key={resource.id}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors text-left"
-                    >
-                      <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{resource.name}</p>
-                        <p className="text-xs text-muted-foreground">{resource.type} • {resource.size}</p>
-                      </div>
-                      <Download className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
               </CardContent>
             </Card>
 
             {/* Other Belts */}
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-semibold mb-4">Próximos Níveis</h3>
+                <h3 className="font-semibold mb-4">Outras Faixas</h3>
                 <div className="space-y-3">
-                  <Link href="/cursos/ecg-faixa-azul" className="flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors">
+                  {slug !== "ecg-faixa-branca-fundamentos2" && (
+                    <Link href="/cursos/ecg-faixa-branca-fundamentos2" className="flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors">
+                      <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-700 font-bold text-xs">1</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">ECG: Faixa Branca</p>
+                        <p className="text-xs text-muted-foreground">Iniciante</p>
+                      </div>
+                    </Link>
+                  )}
+                  <Link href="/cursos/ecg-faixa-azul-arritmias-e-bloqueios" className="flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors">
                     <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">
                       <span className="text-white font-bold text-xs">2</span>
                     </div>
@@ -387,7 +467,7 @@ export default function CoursePage({ params }: { params: Promise<{ slug: string 
                     </div>
                     <Lock className="w-4 h-4 text-muted-foreground ml-auto" />
                   </Link>
-                  <Link href="/cursos/ecg-faixa-preta" className="flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors">
+                  <Link href="/cursos/ecg-faixa-preta-casos-complexos" className="flex items-center gap-3 p-3 rounded-lg border hover:bg-slate-50 transition-colors">
                     <div className="w-10 h-10 rounded-lg bg-gray-900 flex items-center justify-center">
                       <span className="text-white font-bold text-xs">3</span>
                     </div>

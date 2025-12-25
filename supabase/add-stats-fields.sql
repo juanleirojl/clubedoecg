@@ -25,3 +25,5 @@ FROM information_schema.columns
 WHERE table_name = 'profiles' 
 AND column_name IN ('total_watch_time', 'current_streak', 'last_activity_date');
 
+
+

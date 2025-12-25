@@ -122,3 +122,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Uso: SELECT set_plan('email@exemplo.com', 'pro', 12);
 -- Uso: SELECT set_plan('email@exemplo.com', 'basic', 6);
 
+
+

@@ -336,3 +336,5 @@ export function JudokaFightingIcon({ belt, size = "md", className }: JudokaIconP
   )
 }
 
+
+

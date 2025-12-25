@@ -113,3 +113,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- SELECT promote_to_admin('juan.leiro@gmail.com');
 -- =============================================
 
+
+

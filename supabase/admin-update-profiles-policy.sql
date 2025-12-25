@@ -11,3 +11,5 @@ CREATE POLICY "Admins can update profiles" ON public.profiles
 -- Verificar se foi criada
 SELECT policyname FROM pg_policies WHERE tablename = 'profiles';
 
+
+

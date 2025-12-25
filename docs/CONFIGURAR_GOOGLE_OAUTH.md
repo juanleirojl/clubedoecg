@@ -77,3 +77,5 @@ O app está em modo de teste. Para produção, você precisa verificar o app no 
 2. Role até **Usuários de teste**
 3. Adicione os emails que podem testar o login
 
+
+

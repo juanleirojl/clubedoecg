@@ -107,3 +107,5 @@ export function CourseCard({ course }: CourseCardProps) {
   )
 }
 
+
+

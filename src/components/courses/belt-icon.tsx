@@ -101,3 +101,5 @@ export function BeltBadge({ belt, className }: { belt: "white" | "blue" | "black
   )
 }
 
+
+
