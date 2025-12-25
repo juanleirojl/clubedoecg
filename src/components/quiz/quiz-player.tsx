@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, memo, useCallback } from "react"
 import Image from "next/image"
 import dynamic from "next/dynamic"
 import { 
@@ -20,11 +20,18 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { QuizQuestion } from "@/types"
 
-// Dynamic import do ReactPlayer
+// Dynamic import do ReactPlayer - carrega apenas quando necessário
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ReactPlayer = dynamic(
   () => import("react-player").then((mod) => mod.default),
-  { ssr: false }
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="aspect-video rounded-lg bg-slate-100 animate-pulse flex items-center justify-center">
+        <span className="text-muted-foreground">Carregando player...</span>
+      </div>
+    )
+  }
 ) as any
 
 interface QuizPlayerProps {
@@ -32,6 +39,144 @@ interface QuizPlayerProps {
   questions: QuizQuestion[]
   onComplete?: (score: number, answers: { question_id: string; selected_answer: number; is_correct: boolean }[]) => void
 }
+
+// Componente de opção memoizado
+const QuizOption = memo(function QuizOption({
+  option,
+  index,
+  isSelected,
+  isAnswered,
+  isCorrectAnswer,
+  onSelect,
+}: {
+  option: string
+  index: number
+  isSelected: boolean
+  isAnswered: boolean
+  isCorrectAnswer: boolean
+  onSelect: (index: number) => void
+}) {
+  let optionClass = "border-gray-200 hover:border-primary/50 hover:bg-gray-50"
+  
+  if (isAnswered) {
+    if (isCorrectAnswer) {
+      optionClass = "border-green-500 bg-green-50"
+    } else if (isSelected && !isCorrectAnswer) {
+      optionClass = "border-red-500 bg-red-50"
+    } else {
+      optionClass = "border-gray-200 opacity-50"
+    }
+  } else if (isSelected) {
+    optionClass = "border-primary bg-primary/5"
+  }
+
+  return (
+    <button
+      onClick={() => onSelect(index)}
+      disabled={isAnswered}
+      className={cn(
+        "w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left",
+        optionClass
+      )}
+    >
+      <div className={cn(
+        "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors",
+        isAnswered && isCorrectAnswer
+          ? "bg-green-500 text-white"
+          : isAnswered && isSelected && !isCorrectAnswer
+          ? "bg-red-500 text-white"
+          : isSelected
+          ? "bg-primary text-white"
+          : "bg-gray-100 text-gray-600"
+      )}>
+        {String.fromCharCode(65 + index)}
+      </div>
+      <span className="flex-1 text-base">{option}</span>
+      {isAnswered && isCorrectAnswer && (
+        <CheckCircle2 className="h-6 w-6 text-green-500" />
+      )}
+      {isAnswered && isSelected && !isCorrectAnswer && (
+        <XCircle className="h-6 w-6 text-red-500" />
+      )}
+    </button>
+  )
+})
+
+// Componente de resultado memoizado
+const QuizResults = memo(function QuizResults({
+  score,
+  correctCount,
+  totalQuestions,
+  answers,
+  onRestart,
+}: {
+  score: number
+  correctCount: number
+  totalQuestions: number
+  answers: { is_correct: boolean }[]
+  onRestart: () => void
+}) {
+  return (
+    <Card className="max-w-3xl mx-auto">
+      <CardHeader className="text-center pb-2">
+        <CardTitle className="text-2xl">Quiz Concluído!</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="text-center py-8">
+          <div className={cn(
+            "text-7xl font-bold mb-4",
+            score >= 70 ? "text-green-500" : score >= 50 ? "text-yellow-500" : "text-red-500"
+          )}>
+            {Math.round(score)}%
+          </div>
+          <p className="text-xl text-muted-foreground">
+            Você acertou <span className="font-bold text-foreground">{correctCount}</span> de{" "}
+            <span className="font-bold text-foreground">{totalQuestions}</span> questões
+          </p>
+          
+          {score >= 70 ? (
+            <p className="text-green-600 font-medium mt-4">
+              🎉 Excelente! Você domina esse conteúdo!
+            </p>
+          ) : score >= 50 ? (
+            <p className="text-yellow-600 font-medium mt-4">
+              📚 Bom, mas revise os conceitos para melhorar!
+            </p>
+          ) : (
+            <p className="text-red-600 font-medium mt-4">
+              💪 Não desista! Revise as aulas e tente novamente.
+            </p>
+          )}
+        </div>
+
+        {/* Resumo das Respostas */}
+        <div className="grid grid-cols-5 gap-2">
+          {answers.map((answer, index) => (
+            <div
+              key={index}
+              className={cn(
+                "aspect-square rounded-lg flex items-center justify-center font-bold text-white",
+                answer.is_correct ? "bg-green-500" : "bg-red-500"
+              )}
+            >
+              {index + 1}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+      <CardFooter className="flex gap-3">
+        <Button variant="outline" onClick={onRestart} className="flex-1">
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Refazer Quiz
+        </Button>
+        <Button className="flex-1 bg-primary hover:bg-primary/90">
+          Próxima Aula
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+})
 
 export function QuizPlayer({ title, questions, onComplete }: QuizPlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -46,12 +191,12 @@ export function QuizPlayer({ title, questions, onComplete }: QuizPlayerProps) {
   const isLastQuestion = currentIndex === questions.length - 1
   const isCorrect = selectedAnswer === currentQuestion?.correct_answer
 
-  const handleSelectAnswer = (index: number) => {
+  const handleSelectAnswer = useCallback((index: number) => {
     if (isAnswered) return
     setSelectedAnswer(index)
-  }
+  }, [isAnswered])
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (selectedAnswer === null) return
 
     setIsAnswered(true)
@@ -60,32 +205,36 @@ export function QuizPlayer({ title, questions, onComplete }: QuizPlayerProps) {
       selected_answer: selectedAnswer,
       is_correct: selectedAnswer === currentQuestion.correct_answer,
     }
-    setAnswers([...answers, newAnswer])
-  }
+    setAnswers(prev => [...prev, newAnswer])
+  }, [selectedAnswer, currentQuestion])
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (isLastQuestion) {
       setShowResults(true)
-      const finalAnswers = [...answers]
-      const correctCount = finalAnswers.filter((a) => a.is_correct).length
+      const correctCount = answers.filter((a) => a.is_correct).length + (isCorrect ? 1 : 0)
       const score = (correctCount / questions.length) * 100
+      const finalAnswers = [...answers, {
+        question_id: currentQuestion.id,
+        selected_answer: selectedAnswer!,
+        is_correct: isCorrect,
+      }]
       onComplete?.(score, finalAnswers)
     } else {
-      setCurrentIndex(currentIndex + 1)
+      setCurrentIndex(prev => prev + 1)
       setSelectedAnswer(null)
       setIsAnswered(false)
       setShowVideo(false)
     }
-  }
+  }, [isLastQuestion, answers, isCorrect, questions.length, onComplete, currentQuestion, selectedAnswer])
 
-  const handleRestart = () => {
+  const handleRestart = useCallback(() => {
     setCurrentIndex(0)
     setSelectedAnswer(null)
     setIsAnswered(false)
     setAnswers([])
     setShowResults(false)
     setShowVideo(false)
-  }
+  }, [])
 
   const progress = ((currentIndex + (isAnswered ? 1 : 0)) / questions.length) * 100
   const correctCount = answers.filter((a) => a.is_correct).length
@@ -94,64 +243,13 @@ export function QuizPlayer({ title, questions, onComplete }: QuizPlayerProps) {
   // Tela de Resultados
   if (showResults) {
     return (
-      <Card className="max-w-3xl mx-auto">
-        <CardHeader className="text-center pb-2">
-          <CardTitle className="text-2xl">Quiz Concluído!</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="text-center py-8">
-            <div className={cn(
-              "text-7xl font-bold mb-4",
-              score >= 70 ? "text-green-500" : score >= 50 ? "text-yellow-500" : "text-red-500"
-            )}>
-              {Math.round(score)}%
-            </div>
-            <p className="text-xl text-muted-foreground">
-              Você acertou <span className="font-bold text-foreground">{correctCount}</span> de{" "}
-              <span className="font-bold text-foreground">{questions.length}</span> questões
-            </p>
-            
-            {score >= 70 ? (
-              <p className="text-green-600 font-medium mt-4">
-                🎉 Excelente! Você domina esse conteúdo!
-              </p>
-            ) : score >= 50 ? (
-              <p className="text-yellow-600 font-medium mt-4">
-                📚 Bom, mas revise os conceitos para melhorar!
-              </p>
-            ) : (
-              <p className="text-red-600 font-medium mt-4">
-                💪 Não desista! Revise as aulas e tente novamente.
-              </p>
-            )}
-          </div>
-
-          {/* Resumo das Respostas */}
-          <div className="grid grid-cols-5 gap-2">
-            {answers.map((answer, index) => (
-              <div
-                key={index}
-                className={cn(
-                  "aspect-square rounded-lg flex items-center justify-center font-bold text-white",
-                  answer.is_correct ? "bg-green-500" : "bg-red-500"
-                )}
-              >
-                {index + 1}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-        <CardFooter className="flex gap-3">
-          <Button variant="outline" onClick={handleRestart} className="flex-1">
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Refazer Quiz
-          </Button>
-          <Button className="flex-1 bg-primary hover:bg-primary/90">
-            Próxima Aula
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </CardFooter>
-      </Card>
+      <QuizResults
+        score={score}
+        correctCount={correctCount}
+        totalQuestions={questions.length}
+        answers={answers}
+        onRestart={handleRestart}
+      />
     )
   }
 
@@ -208,6 +306,8 @@ export function QuizPlayer({ title, questions, onComplete }: QuizPlayerProps) {
                   "object-contain bg-white",
                   !imageZoomed && "object-cover"
                 )}
+                loading="eager"
+                priority
               />
               <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5">
                 <ZoomIn className="h-3.5 w-3.5" />
@@ -227,56 +327,17 @@ export function QuizPlayer({ title, questions, onComplete }: QuizPlayerProps) {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {currentQuestion.options.map((option, index) => {
-            const isSelected = selectedAnswer === index
-            const isCorrectAnswer = index === currentQuestion.correct_answer
-            
-            let optionClass = "border-gray-200 hover:border-primary/50 hover:bg-gray-50"
-            
-            if (isAnswered) {
-              if (isCorrectAnswer) {
-                optionClass = "border-green-500 bg-green-50"
-              } else if (isSelected && !isCorrectAnswer) {
-                optionClass = "border-red-500 bg-red-50"
-              } else {
-                optionClass = "border-gray-200 opacity-50"
-              }
-            } else if (isSelected) {
-              optionClass = "border-primary bg-primary/5"
-            }
-
-            return (
-              <button
-                key={index}
-                onClick={() => handleSelectAnswer(index)}
-                disabled={isAnswered}
-                className={cn(
-                  "w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left",
-                  optionClass
-                )}
-              >
-                <div className={cn(
-                  "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors",
-                  isAnswered && isCorrectAnswer
-                    ? "bg-green-500 text-white"
-                    : isAnswered && isSelected && !isCorrectAnswer
-                    ? "bg-red-500 text-white"
-                    : isSelected
-                    ? "bg-primary text-white"
-                    : "bg-gray-100 text-gray-600"
-                )}>
-                  {String.fromCharCode(65 + index)}
-                </div>
-                <span className="flex-1 text-base">{option}</span>
-                {isAnswered && isCorrectAnswer && (
-                  <CheckCircle2 className="h-6 w-6 text-green-500" />
-                )}
-                {isAnswered && isSelected && !isCorrectAnswer && (
-                  <XCircle className="h-6 w-6 text-red-500" />
-                )}
-              </button>
-            )
-          })}
+          {currentQuestion.options.map((option, index) => (
+            <QuizOption
+              key={index}
+              option={option}
+              index={index}
+              isSelected={selectedAnswer === index}
+              isAnswered={isAnswered}
+              isCorrectAnswer={index === currentQuestion.correct_answer}
+              onSelect={handleSelectAnswer}
+            />
+          ))}
         </CardContent>
 
         {/* Botão Confirmar */}
@@ -347,7 +408,7 @@ export function QuizPlayer({ title, questions, onComplete }: QuizPlayerProps) {
             </Card>
           )}
 
-          {/* Vídeo Explicativo */}
+          {/* Vídeo Explicativo - Lazy Load */}
           {currentQuestion.explanation_video_url && (
             <Card>
               <CardHeader className="pb-3">
@@ -365,6 +426,14 @@ export function QuizPlayer({ title, questions, onComplete }: QuizPlayerProps) {
                       height="100%"
                       controls
                       playing
+                      config={{
+                        youtube: {
+                          playerVars: { showinfo: 0, rel: 0 }
+                        },
+                        vimeo: {
+                          playerOptions: { byline: false, portrait: false }
+                        }
+                      }}
                     />
                   </div>
                 ) : (

@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Clock, BookOpen, PlayCircle } from "lucide-react"
@@ -17,15 +18,16 @@ const difficultyColors = {
   iniciante: "bg-green-500/10 text-green-500 border-green-500/20",
   intermediario: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
   avancado: "bg-red-500/10 text-red-500 border-red-500/20",
-}
+} as const
 
 const difficultyLabels = {
   iniciante: "Iniciante",
   intermediario: "Intermediário",
   avancado: "Avançado",
-}
+} as const
 
-export function CourseCard({ course }: CourseCardProps) {
+// Memoizado para evitar re-renders desnecessários
+export const CourseCard = memo(function CourseCard({ course }: CourseCardProps) {
   const progressPercentage = course.progress?.progress_percentage || 0
   const hasStarted = progressPercentage > 0
 
@@ -38,6 +40,8 @@ export function CourseCard({ course }: CourseCardProps) {
           alt={course.title}
           fill
           className="object-cover transition-transform group-hover:scale-105"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          loading="lazy"
         />
         
         {/* Overlay com Play */}
@@ -98,14 +102,11 @@ export function CourseCard({ course }: CourseCardProps) {
 
       <CardFooter className="p-4 pt-0">
         <Button asChild className="w-full" variant={hasStarted ? "default" : "outline"}>
-          <Link href={`/cursos/${course.slug}`}>
+          <Link href={`/cursos/${course.slug}`} prefetch={false}>
             {hasStarted ? "Continuar" : "Começar"}
           </Link>
         </Button>
       </CardFooter>
     </Card>
   )
-}
-
-
-
+})

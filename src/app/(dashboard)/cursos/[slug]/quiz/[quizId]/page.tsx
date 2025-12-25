@@ -1,85 +1,43 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, ArrowRight, CheckCircle2, XCircle, Play, RotateCcw, Award, Lightbulb, Video } from "lucide-react"
+import { ArrowLeft, ArrowRight, CheckCircle2, XCircle, RotateCcw, Award, Lightbulb, Video, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
+import { useQuizProgress } from "@/hooks/use-progress"
+import { useUser } from "@/contexts/user-context"
 
-// Mock data para quiz com imagens de ECG
-const mockQuiz = {
-  id: "quiz-1",
-  title: "Quiz: Fundamentos do ECG",
-  description: "Teste seus conhecimentos sobre os componentes básicos do eletrocardiograma",
-  chapter: "Nível 1: A Curva do ECG",
+interface QuizQuestion {
+  id: string
+  question: string
+  image_url: string | null
+  clinical_context: string | null
+  options: string[]
+  correct_answer: number
+  explanation: string
+  explanation_video_url: string | null
+  clinical_tip: string | null
+  order_index: number
 }
 
-const mockQuestions = [
-  {
-    id: "q1",
-    question: "Analise o ECG abaixo. Qual é o ritmo cardíaco deste paciente?",
-    ecg_image: "https://images.unsplash.com/photo-1559757175-5700dde675bc?w=800",
-    options: [
-      "Ritmo sinusal normal",
-      "Fibrilação atrial",
-      "Flutter atrial",
-      "Taquicardia ventricular",
-    ],
-    correct_answer: 0,
-    explanation: "Este ECG mostra um ritmo sinusal normal. Observe a presença de onda P antes de cada complexo QRS, com intervalo PR constante e frequência regular entre 60-100 bpm.",
-    explanation_video: "https://vimeo.com/999233514",
-    clinical_tip: "No plantão, sempre confirme o ritmo em pelo menos 2 derivações (DII e V1 são as melhores para análise de ritmo).",
-  },
-  {
-    id: "q2",
-    question: "Observe o traçado. Qual componente está marcado com a seta vermelha?",
-    ecg_image: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800",
-    options: [
-      "Onda P",
-      "Complexo QRS",
-      "Onda T",
-      "Segmento ST",
-    ],
-    correct_answer: 1,
-    explanation: "O componente marcado é o Complexo QRS, que representa a despolarização ventricular. É a deflexão mais proeminente do ECG e tem duração normal de 80-120ms.",
-    explanation_video: "https://vimeo.com/984243986",
-    clinical_tip: "Um QRS alargado (>120ms) pode indicar bloqueio de ramo ou ritmo de origem ventricular.",
-  },
-  {
-    id: "q3",
-    question: "Este paciente de 55 anos chegou com dor torácica. Qual é a alteração mais preocupante neste ECG?",
-    ecg_image: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?w=800",
-    options: [
-      "Onda P ausente",
-      "Supradesnivelamento do segmento ST",
-      "QRS alargado",
-      "Intervalo QT prolongado",
-    ],
-    correct_answer: 1,
-    explanation: "O supradesnivelamento do segmento ST é a alteração mais preocupante neste contexto clínico, pois indica Infarto Agudo do Miocárdio com Supradesnivelamento de ST (IAMCSST). Este paciente precisa de reperfusão imediata!",
-    explanation_video: "https://vimeo.com/999233514",
-    clinical_tip: "TEMPO É MÚSCULO! Em caso de IAMCSST, o tempo porta-balão deve ser <90 minutos.",
-  },
-  {
-    id: "q4",
-    question: "Qual é a frequência cardíaca aproximada deste ECG?",
-    ecg_image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800",
-    options: [
-      "50 bpm",
-      "75 bpm",
-      "100 bpm",
-      "150 bpm",
-    ],
-    correct_answer: 1,
-    explanation: "A frequência é aproximadamente 75 bpm. Usando o método dos 300, contamos 4 quadrados grandes entre os complexos QRS: 300 ÷ 4 = 75 bpm.",
-    explanation_video: "https://vimeo.com/984243986",
-    clinical_tip: "Método rápido: 300/nº de quadrados grandes entre R-R = FC aproximada.",
-  },
-]
+interface Quiz {
+  id: string
+  title: string
+  description: string
+  module?: {
+    title: string
+    course?: {
+      title: string
+      slug: string
+    }
+  }
+}
 
 export default function QuizPage({ 
   params 
@@ -88,6 +46,11 @@ export default function QuizPage({
 }) {
   const { slug, quizId } = use(params)
   
+  const [quiz, setQuiz] = useState<Quiz | null>(null)
+  const [questions, setQuestions] = useState<QuizQuestion[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [isAnswered, setIsAnswered] = useState(false)
@@ -95,10 +58,70 @@ export default function QuizPage({
   const [answers, setAnswers] = useState<{ question_id: string; selected_answer: number; is_correct: boolean }[]>([])
   const [showResults, setShowResults] = useState(false)
 
-  const currentQuestion = mockQuestions[currentIndex]
-  const isLastQuestion = currentIndex === mockQuestions.length - 1
+  const { bestScore, saveAttempt, isSaving } = useQuizProgress(quizId)
+  const { markQuizCompleted } = useUser()
+
+  // Buscar dados do quiz - otimizado com query única
+  useEffect(() => {
+    async function fetchQuiz() {
+      const supabase = createClient()
+
+      // Query única que busca quiz + módulo + curso + perguntas
+      const { data: quizData, error: quizError } = await supabase
+        .from("quizzes")
+        .select(`
+          id, title, description,
+          module:modules(
+            title,
+            course:courses(title, slug)
+          ),
+          quiz_questions(
+            id, question, image_url, clinical_context,
+            options, correct_answer, explanation,
+            explanation_video_url, clinical_tip, order_index
+          )
+        `)
+        .eq("id", quizId)
+        .single()
+
+      if (quizError) {
+        console.error("Erro ao buscar quiz:", quizError)
+        setError("Quiz não encontrado")
+        setIsLoading(false)
+        return
+      }
+
+      // Ordenar perguntas
+      const sortedQuestions = (quizData.quiz_questions || [])
+        .sort((a: QuizQuestion, b: QuizQuestion) => a.order_index - b.order_index)
+
+      // Normalizar dados do quiz (Supabase pode retornar arrays para relações)
+      const rawModule = Array.isArray(quizData.module) ? quizData.module[0] : quizData.module
+      const rawCourse = rawModule?.course
+      const normalizedCourse = Array.isArray(rawCourse) ? rawCourse[0] : rawCourse
+      
+      const normalizedQuiz: Quiz = {
+        id: quizData.id,
+        title: quizData.title,
+        description: quizData.description,
+        module: rawModule ? {
+          title: rawModule.title,
+          course: normalizedCourse,
+        } : undefined,
+      }
+      
+      setQuiz(normalizedQuiz)
+      setQuestions(sortedQuestions)
+      setIsLoading(false)
+    }
+
+    fetchQuiz()
+  }, [quizId])
+
+  const currentQuestion = questions[currentIndex]
+  const isLastQuestion = currentIndex === questions.length - 1
   const isCorrect = selectedAnswer === currentQuestion?.correct_answer
-  const progress = ((currentIndex + (isAnswered ? 1 : 0)) / mockQuestions.length) * 100
+  const progress = questions.length > 0 ? ((currentIndex + (isAnswered ? 1 : 0)) / questions.length) * 100 : 0
 
   const handleSelectAnswer = (index: number) => {
     if (isAnswered) return
@@ -106,7 +129,7 @@ export default function QuizPage({
   }
 
   const handleConfirm = () => {
-    if (selectedAnswer === null) return
+    if (selectedAnswer === null || !currentQuestion) return
     setIsAnswered(true)
     const newAnswer = {
       question_id: currentQuestion.id,
@@ -116,8 +139,14 @@ export default function QuizPage({
     setAnswers([...answers, newAnswer])
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (isLastQuestion) {
+      // Salvar tentativa no banco
+      const correctCount = answers.filter((a) => a.is_correct).length
+      const score = Math.round((correctCount / questions.length) * 100)
+      await saveAttempt(score, answers)
+      // Marcar quiz como concluído no contexto (atualização otimista)
+      markQuizCompleted(quizId, score)
       setShowResults(true)
     } else {
       setCurrentIndex(currentIndex + 1)
@@ -136,8 +165,34 @@ export default function QuizPage({
     setShowResults(false)
   }
 
+  // Loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span>Carregando quiz...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Erro ou sem perguntas
+  if (error || !quiz || questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold">{error || "Quiz sem perguntas"}</h2>
+          <Link href={`/cursos/${slug}`}>
+            <Button className="mt-4">Voltar ao curso</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   const correctCount = answers.filter((a) => a.is_correct).length
-  const score = Math.round((correctCount / mockQuestions.length) * 100)
+  const score = Math.round((correctCount / questions.length) * 100)
 
   // Tela de Resultados
   if (showResults) {
@@ -166,8 +221,14 @@ export default function QuizPage({
                 {score >= 70 ? "Excelente! 🎉" : score >= 50 ? "Bom trabalho! 👍" : "Continue praticando! 💪"}
               </h2>
               <p className="text-muted-foreground mb-6">
-                Você acertou {correctCount} de {mockQuestions.length} questões
+                Você acertou {correctCount} de {questions.length} questões
               </p>
+
+              {bestScore !== null && bestScore > score && (
+                <p className="text-sm text-muted-foreground mb-4">
+                  Seu melhor resultado: {bestScore}%
+                </p>
+              )}
 
               {/* Resumo */}
               <div className="grid grid-cols-4 gap-2 mb-8">
@@ -220,12 +281,12 @@ export default function QuizPage({
           
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">{mockQuiz.chapter}</p>
-              <h1 className="font-semibold">{mockQuiz.title}</h1>
+              <p className="text-sm text-muted-foreground">{quiz.module?.title}</p>
+              <h1 className="font-semibold">{quiz.title}</h1>
             </div>
             <div className="text-right">
               <p className="text-sm text-muted-foreground">Questão</p>
-              <p className="font-semibold">{currentIndex + 1} / {mockQuestions.length}</p>
+              <p className="font-semibold">{currentIndex + 1} / {questions.length}</p>
             </div>
           </div>
           
@@ -236,30 +297,43 @@ export default function QuizPage({
       {/* Question Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* ECG Image */}
-        <Card className="mb-6 overflow-hidden">
-          <div className="relative aspect-[16/9] bg-slate-100">
-            <Image
-              src={currentQuestion.ecg_image}
-              alt="ECG para análise"
-              fill
-              className="object-cover"
-            />
-            <div className="absolute top-4 left-4">
-              <Badge className="bg-black/60 text-white">
-                ECG do Paciente
-              </Badge>
+        {currentQuestion?.image_url && (
+          <Card className="mb-6 overflow-hidden">
+            <div className="relative aspect-[16/9] bg-slate-100">
+              <Image
+                src={currentQuestion.image_url}
+                alt="ECG para análise"
+                fill
+                className="object-cover"
+              />
+              <div className="absolute top-4 left-4">
+                <Badge className="bg-black/60 text-white">
+                  ECG do Paciente
+                </Badge>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
+
+        {/* Clinical Context */}
+        {currentQuestion?.clinical_context && (
+          <Card className="mb-4 border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Contexto Clínico:</strong> {currentQuestion.clinical_context}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Question */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-6">{currentQuestion.question}</h2>
+            <h2 className="text-xl font-semibold mb-6">{currentQuestion?.question}</h2>
 
             {/* Options */}
             <div className="space-y-3">
-              {currentQuestion.options.map((option, index) => {
+              {currentQuestion?.options.map((option, index) => {
                 const isSelected = selectedAnswer === index
                 const isCorrectAnswer = index === currentQuestion.correct_answer
                 
@@ -314,7 +388,7 @@ export default function QuizPage({
         </Card>
 
         {/* Feedback após responder */}
-        {isAnswered && (
+        {isAnswered && currentQuestion && (
           <div className="space-y-4 animate-fade-in">
             {/* Resultado */}
             <Card className={cn(
@@ -342,46 +416,50 @@ export default function QuizPage({
             </Card>
 
             {/* Dica Clínica */}
-            <Card className="border-amber-200 bg-amber-50">
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <Lightbulb className="w-6 h-6 text-amber-500 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-semibold text-amber-800 mb-1">Dica para o Plantão</h4>
-                    <p className="text-amber-700 text-sm">{currentQuestion.clinical_tip}</p>
+            {currentQuestion.clinical_tip && (
+              <Card className="border-amber-200 bg-amber-50">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <Lightbulb className="w-6 h-6 text-amber-500 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-semibold text-amber-800 mb-1">Dica para o Plantão</h4>
+                      <p className="text-amber-700 text-sm">{currentQuestion.clinical_tip}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Vídeo de Explicação */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Video className="w-5 h-5 text-primary" />
-                    <h4 className="font-semibold">Vídeo Explicativo</h4>
+            {currentQuestion.explanation_video_url && (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Video className="w-5 h-5 text-primary" />
+                      <h4 className="font-semibold">Vídeo Explicativo</h4>
+                    </div>
+                    <Button 
+                      variant={showVideo ? "secondary" : "default"}
+                      onClick={() => setShowVideo(!showVideo)}
+                    >
+                      {showVideo ? "Ocultar" : "Assistir"}
+                    </Button>
                   </div>
-                  <Button 
-                    variant={showVideo ? "secondary" : "default"}
-                    onClick={() => setShowVideo(!showVideo)}
-                  >
-                    {showVideo ? "Ocultar" : "Assistir"}
-                  </Button>
-                </div>
-                
-                {showVideo && (
-                  <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                    <iframe
-                      src={`https://player.vimeo.com/video/${currentQuestion.explanation_video.split('/').pop()}?autoplay=1`}
-                      className="w-full h-full"
-                      allow="autoplay; fullscreen"
-                      allowFullScreen
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  
+                  {showVideo && (
+                    <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                      <iframe
+                        src={currentQuestion.explanation_video_url}
+                        className="w-full h-full"
+                        allow="autoplay; fullscreen"
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
@@ -397,7 +475,15 @@ export default function QuizPage({
               Confirmar Resposta
             </Button>
           ) : (
-            <Button onClick={handleNext} size="lg" className="bg-primary">
+            <Button 
+              onClick={handleNext} 
+              size="lg" 
+              className="bg-primary"
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
               {isLastQuestion ? "Ver Resultado" : "Próxima Questão"}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>

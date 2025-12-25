@@ -8,11 +8,14 @@ import {
   PlayCircle, 
   HelpCircle,
   TrendingUp,
-  Plus
+  Plus,
+  RefreshCw,
+  Loader2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
+import { revalidateAll } from "@/lib/cache"
 
 interface Stats {
   totalCourses: number
@@ -29,6 +32,20 @@ export default function AdminDashboard() {
     totalUsers: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [isRevalidating, setIsRevalidating] = useState(false)
+
+  async function handleRevalidateCache() {
+    setIsRevalidating(true)
+    try {
+      await revalidateAll()
+      alert("✅ Cache atualizado com sucesso! As alterações agora estão visíveis para os usuários.")
+    } catch (error) {
+      console.error("Erro ao revalidar cache:", error)
+      alert("❌ Erro ao atualizar cache. Tente novamente.")
+    } finally {
+      setIsRevalidating(false)
+    }
+  }
 
   useEffect(() => {
     async function loadStats() {
@@ -114,12 +131,27 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 mt-1">Visão geral da plataforma</p>
         </div>
-        <Link href="/admin/cursos/novo">
-          <Button className="bg-red-500 hover:bg-red-600">
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Curso
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleRevalidateCache}
+            disabled={isRevalidating}
+            className="border-orange-500 text-orange-600 hover:bg-orange-50"
+          >
+            {isRevalidating ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
+            Atualizar Cache
           </Button>
-        </Link>
+          <Link href="/admin/cursos/novo">
+            <Button className="bg-red-500 hover:bg-red-600">
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Curso
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats Grid */}

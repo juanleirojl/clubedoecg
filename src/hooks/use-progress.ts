@@ -2,19 +2,25 @@
 
 import { useState, useCallback, useRef, useEffect } from "react"
 import {
-  updateLessonProgress,
   markLessonComplete,
   getLessonProgress,
   getCourseProgress,
   saveQuizAttempt,
   getBestQuizAttempt,
-  updateTotalWatchTime,
-  updateStreak,
+  batchUpdateProgress,
+  updateLessonProgress,
 } from "@/lib/supabase/progress"
+
+// ==========================================
+// CONSTANTES DE PERFORMANCE
+// ==========================================
+const SAVE_INTERVAL_MS = 60000 // Salvar a cada 60 segundos (era 30)
+const SAVE_INTERVAL_SECONDS = 60
 
 // ==========================================
 // HOOK: useVideoProgress
 // Salva automaticamente o progresso do vídeo
+// OTIMIZADO: Usa batch update e intervalo maior
 // ==========================================
 export function useVideoProgress(lessonId: string) {
   const [isCompleted, setIsCompleted] = useState(false)
@@ -24,6 +30,7 @@ export function useVideoProgress(lessonId: string) {
   const watchTimeRef = useRef(0)
   const lastSaveRef = useRef(0)
   const hasMarkedComplete = useRef(false)
+  const isSaving = useRef(false) // Previne saves simultâneos
 
   // Carrega progresso inicial
   useEffect(() => {
@@ -45,37 +52,35 @@ export function useVideoProgress(lessonId: string) {
     loadProgress()
   }, [lessonId])
 
-  // Atualiza progresso (chamada a cada 30 segundos)
+  // Atualiza progresso - OTIMIZADO com batch update
   const updateProgress = useCallback(async (
     currentTime: number,
     duration: number
   ) => {
     const now = Date.now()
     
-    // Só salva a cada 30 segundos
-    if (now - lastSaveRef.current < 30000) return
+    // Throttle: só salva a cada 60 segundos E se não estiver salvando
+    if (now - lastSaveRef.current < SAVE_INTERVAL_MS || isSaving.current) return
+    
+    isSaving.current = true
     lastSaveRef.current = now
 
     // Incrementa tempo assistido
-    watchTimeRef.current += 30
+    watchTimeRef.current += SAVE_INTERVAL_SECONDS
 
     // Calcula se completou (90% do vídeo)
     const percentWatched = currentTime / duration
     const shouldComplete = percentWatched >= 0.9 && !hasMarkedComplete.current
 
     try {
-      await updateLessonProgress({
+      // USA BATCH UPDATE - UMA ÚNICA CHAMADA!
+      await batchUpdateProgress({
         lessonId,
         watchTimeSeconds: watchTimeRef.current,
         lastPositionSeconds: Math.floor(currentTime),
         completed: shouldComplete || hasMarkedComplete.current,
+        additionalWatchTime: SAVE_INTERVAL_SECONDS,
       })
-
-      // Atualiza o tempo total de estudo (adiciona 30 segundos)
-      await updateTotalWatchTime(30)
-      
-      // Atualiza o streak (sequência de dias)
-      await updateStreak()
 
       if (shouldComplete) {
         hasMarkedComplete.current = true
@@ -83,6 +88,8 @@ export function useVideoProgress(lessonId: string) {
       }
     } catch (error) {
       console.error("Erro ao salvar progresso:", error)
+    } finally {
+      isSaving.current = false
     }
   }, [lessonId])
 

@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
   BookOpen,
   Crown,
-  Heart,
   Home,
   LogOut,
   Settings,
@@ -16,6 +15,7 @@ import {
   HelpCircle,
   Sparkles,
 } from "lucide-react"
+import { ECGAnimationContinuous } from "@/components/ui/ecg-animation"
 import {
   Sidebar,
   SidebarContent,
@@ -39,7 +39,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/lib/supabase/client"
-import { getCurrentCourseProgress } from "@/lib/supabase/progress"
+import { useUser } from "@/contexts/user-context"
 
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
@@ -66,22 +66,6 @@ const planConfig = {
   },
 }
 
-interface UserProfile {
-  id: string
-  email: string
-  full_name: string
-  avatar_url: string
-  role: string
-  subscription_plan: string
-}
-
-interface CourseProgress {
-  courseName: string
-  belt: "white" | "blue" | "black"
-  progressPercentage: number
-  slug: string
-}
-
 // Configuração das faixas
 const beltConfig = {
   white: { name: "Faixa Branca", emoji: "🥋", gradient: "from-gray-100 to-gray-200", border: "border-gray-300" },
@@ -89,49 +73,36 @@ const beltConfig = {
   black: { name: "Faixa Preta", emoji: "🥋", gradient: "from-gray-800 to-gray-900", border: "border-gray-700" },
 }
 
+// Mapear dificuldade para belt
+function getBelt(difficulty: string): "white" | "blue" | "black" {
+  if (difficulty === "intermediario") return "blue"
+  if (difficulty === "avancado") return "black"
+  return "white"
+}
+
 export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
+  
+  // Usar contexto centralizado - ZERO QUERIES PRÓPRIAS!
+  const { profile, currentCourse, isLoading } = useUser()
 
   // Evita mismatch de hidratação
   useEffect(() => {
     setIsMounted(true)
   }, [])
-
-  useEffect(() => {
-    async function loadData() {
-      const supabase = createClient()
-      
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user) {
-        // Carregar perfil
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single()
-        
-        if (profileData) {
-          setProfile(profileData)
-        }
-
-        // Carregar progresso do curso atual
-        const progress = await getCurrentCourseProgress()
-        if (progress) {
-          setCourseProgress(progress)
-        }
-      }
-      
-      setIsLoading(false)
+  
+  // Dados do progresso (derivados do contexto)
+  const courseProgress = useMemo(() => {
+    if (!currentCourse) return null
+    const belt = getBelt(currentCourse.difficulty)
+    return {
+      belt,
+      progressPercentage: currentCourse.progress,
+      slug: currentCourse.slug,
     }
-    
-    loadData()
-  }, [])
+  }, [currentCourse])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -155,15 +126,15 @@ export function AppSidebar() {
     <Sidebar className="border-r border-border bg-white">
       <SidebarHeader className="p-4 border-b">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-            <Heart className="h-6 w-6 text-white" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary overflow-hidden">
+            <ECGAnimationContinuous className="w-8 h-6 text-white" />
           </div>
           <div className="flex flex-col">
             <span className="text-lg font-bold text-foreground">
               Clube do ECG
             </span>
             <span className="text-xs text-muted-foreground">
-              Método CAMPOS-ECG™
+              Do traçado à conduta
             </span>
           </div>
         </Link>
@@ -276,17 +247,17 @@ export function AppSidebar() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-slate-50 transition-colors">
-                <Avatar className="h-10 w-10 border-2 border-slate-200">
+                <Avatar className="h-10 w-10 shrink-0 border-2 border-slate-200">
                   <AvatarImage src={profile?.avatar_url || ""} />
                   <AvatarFallback className="bg-primary text-white">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col items-start text-sm flex-1 min-w-0">
-                  <span className="font-medium text-foreground truncate w-full">
+                <div className="flex flex-col items-start text-sm min-w-0 flex-1">
+                  <span className="font-medium text-foreground truncate max-w-full">
                     {profile?.full_name || "Usuário"}
                   </span>
-                  <Badge className={`text-[10px] px-1.5 py-0 ${planInfo.color} border-0`}>
+                  <Badge className={`text-[10px] px-1.5 py-0.5 ${planInfo.color} border-0 flex items-center`}>
                     {PlanIcon && <PlanIcon className="h-3 w-3 mr-1" />}
                     {planInfo.label}
                   </Badge>

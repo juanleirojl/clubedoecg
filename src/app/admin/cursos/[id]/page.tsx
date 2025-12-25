@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCourse, updateCourse } from "@/lib/supabase/admin"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 export default function EditarCursoPage() {
   const router = useRouter()
@@ -214,17 +215,13 @@ export default function EditarCursoPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="thumbnail_url">URL da Thumbnail</Label>
-                <Input
-                  id="thumbnail_url"
-                  type="url"
-                  placeholder="https://..."
+                <Label>Thumbnail do Curso</Label>
+                <ImageUpload
                   value={formData.thumbnail_url}
-                  onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                  onChange={(url) => setFormData({ ...formData, thumbnail_url: url })}
+                  folder="thumbnails"
+                  placeholder="Cole uma URL ou faça upload (recomendado: 1280x720)"
                 />
-                <p className="text-sm text-gray-500">
-                  Imagem de capa do curso (recomendado: 1280x720)
-                </p>
               </div>
 
               <div className="space-y-2">
