@@ -12,7 +12,9 @@ import {
   LogOut,
   ChevronRight,
   Shield,
-  Loader2
+  Loader2,
+  Menu,
+  X
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -44,6 +46,7 @@ export default function AdminLayout({
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     async function checkAdmin() {
@@ -75,6 +78,11 @@ export default function AdminLayout({
 
     checkAdmin()
   }, [router, pathname])
+
+  // Fecha sidebar ao mudar de página no mobile
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -108,8 +116,38 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Mobile Header */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-gray-900 text-white flex items-center px-4 gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-white hover:bg-gray-800"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+        >
+          {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </Button>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
+            <Shield className="w-5 h-5" />
+          </div>
+          <span className="font-bold">Admin</span>
+        </div>
+      </header>
+
+      {/* Overlay para mobile */}
+      {sidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 z-40 bg-black/50"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 w-64 bg-gray-900 text-white">
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white transform transition-transform duration-200 ease-in-out",
+        "lg:translate-x-0",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         {/* Logo */}
         <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-800">
           <div className="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center">
@@ -192,10 +230,9 @@ export default function AdminLayout({
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64">
+      <main className="lg:ml-64 pt-14 lg:pt-0">
         {children}
       </main>
     </div>
   )
 }
-
