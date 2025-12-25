@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache"
+import { revalidatePath } from "next/cache"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server"
  * Chamada automaticamente quando dados são alterados no admin
  * 
  * POST /api/revalidate
- * Body: { tags: ["courses"] } ou { tags: ["courses", "lessons", "quizzes"] }
+ * Body: { paths: ["/cursos"] } ou vazio para revalidar todas as rotas principais
  */
 export async function POST(request: NextRequest) {
   try {
@@ -36,18 +36,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obter tags para revalidar
-    const body = await request.json()
-    const tags = body.tags || ["courses", "lessons", "quizzes"]
+    // Paths padrão para revalidar
+    const defaultPaths = [
+      "/cursos",
+      "/dashboard",
+      "/cursos/ecg-faixa-branca-fundamentos",
+    ]
 
-    // Revalidar cada tag
-    for (const tag of tags) {
-      revalidateTag(tag)
+    // Obter paths do body ou usar os padrão
+    const body = await request.json().catch(() => ({}))
+    const paths = body.paths || defaultPaths
+
+    // Revalidar cada path
+    for (const path of paths) {
+      revalidatePath(path)
     }
 
     return NextResponse.json({
       success: true,
-      message: `Cache revalidado para: ${tags.join(", ")}`,
+      message: `Cache revalidado para: ${paths.join(", ")}`,
       revalidatedAt: new Date().toISOString()
     })
 
@@ -78,16 +85,22 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Revalidar todas as tags
-  const tags = ["courses", "lessons", "quizzes", "all-courses"]
-  for (const tag of tags) {
-    revalidateTag(tag)
+  // Revalidar todas as rotas principais
+  const paths = [
+    "/",
+    "/cursos",
+    "/dashboard",
+    "/cursos/ecg-faixa-branca-fundamentos",
+  ]
+  
+  for (const path of paths) {
+    revalidatePath(path)
   }
 
   return NextResponse.json({
     success: true,
     message: "Todo o cache foi revalidado",
-    tags,
+    paths,
     revalidatedAt: new Date().toISOString()
   })
 }
