@@ -8,6 +8,8 @@ import {
   getCourseProgress,
   saveQuizAttempt,
   getBestQuizAttempt,
+  updateTotalWatchTime,
+  updateStreak,
 } from "@/lib/supabase/progress"
 
 // ==========================================
@@ -68,6 +70,12 @@ export function useVideoProgress(lessonId: string) {
         lastPositionSeconds: Math.floor(currentTime),
         completed: shouldComplete || hasMarkedComplete.current,
       })
+
+      // Atualiza o tempo total de estudo (adiciona 30 segundos)
+      await updateTotalWatchTime(30)
+      
+      // Atualiza o streak (sequência de dias)
+      await updateStreak()
 
       if (shouldComplete) {
         hasMarkedComplete.current = true

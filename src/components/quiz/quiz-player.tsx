@@ -20,8 +20,11 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { QuizQuestion } from "@/types"
 
-// Dynamic import do ReactPlayer
-const ReactPlayer = dynamic(() => import("react-player"), { ssr: false })
+// Dynamic import do ReactPlayer com tipagem correta
+const ReactPlayer = dynamic(
+  () => import("react-player").then((mod) => mod.default),
+  { ssr: false }
+)
 
 interface QuizPlayerProps {
   title: string
