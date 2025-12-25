@@ -292,8 +292,9 @@ export async function getCurrentCourseProgress(): Promise<{
   let difficulty: string | null = null
 
   // Se encontrou algum progresso, pega o curso
-  if (recentProgress?.lesson?.module?.course) {
-    const course = recentProgress.lesson.module.course
+  const progressData = recentProgress as any
+  if (progressData?.lesson?.module?.course) {
+    const course = progressData.lesson.module.course
     courseId = course.id
     courseSlug = course.slug
     courseName = course.title
