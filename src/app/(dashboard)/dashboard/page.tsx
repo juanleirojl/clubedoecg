@@ -139,13 +139,31 @@ export default function DashboardPage() {
             .select("*, module:modules!inner(course_id)", { count: "exact", head: true })
             .eq("module.course_id", course.id)
 
-          // Buscar primeira aula
-          const { data: firstLesson } = await supabase
+          // Buscar aulas completadas pelo usuário neste curso
+          const { data: completedLessonsData } = await supabase
+            .from("user_lesson_progress")
+            .select("lesson_id, lessons!inner(module_id, modules!inner(course_id))")
+            .eq("user_id", user.id)
+            .eq("completed", true)
+
+          const completedInCourse = (completedLessonsData as any[])?.filter(
+            (p) => p.lessons?.modules?.course_id === course.id
+          ).length || 0
+
+          const total = totalLessons || 0
+          const progressPercentage = total > 0 ? Math.round((completedInCourse / total) * 100) : 0
+
+          // Buscar próxima aula não completada
+          const { data: allLessons } = await supabase
             .from("lessons")
-            .select("id, title, duration_seconds, module:modules!inner(course_id)")
+            .select("id, title, duration_seconds, module:modules!inner(course_id, order_index)")
             .eq("module.course_id", course.id)
             .order("order_index", { ascending: true })
-            .limit(1)
+
+          // Encontrar a próxima aula não completada
+          const completedIds = (completedLessonsData as any[])?.map(p => p.lesson_id) || []
+          const nextLesson = allLessons?.find(lesson => !completedIds.includes(lesson.id))
+          const firstLesson = allLessons?.[0]
 
           setCurrentCourse({
             id: course.id,
@@ -153,13 +171,13 @@ export default function DashboardPage() {
             slug: course.slug,
             difficulty: course.difficulty,
             thumbnail_url: course.thumbnail_url || "https://images.unsplash.com/photo-1559757175-5700dde675bc?w=800",
-            totalLessons: totalLessons || 0,
-            completedLessons: 0,
-            progress: 0,
-            nextLesson: firstLesson?.[0] ? {
-              id: firstLesson[0].id,
-              title: firstLesson[0].title,
-              duration: formatDuration(firstLesson[0].duration_seconds || 0),
+            totalLessons: total,
+            completedLessons: completedInCourse,
+            progress: progressPercentage,
+            nextLesson: (nextLesson || firstLesson) ? {
+              id: (nextLesson || firstLesson)!.id,
+              title: (nextLesson || firstLesson)!.title,
+              duration: formatDuration((nextLesson || firstLesson)!.duration_seconds || 0),
             } : undefined,
           })
         }
