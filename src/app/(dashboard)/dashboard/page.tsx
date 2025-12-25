@@ -187,9 +187,8 @@ export default function DashboardPage() {
                 .eq("user_id", user.id)
                 .eq("completed", true)
 
-              const completedInCourse = completedLessons?.filter(
-                (p: { lessons: { modules: { course_id: string } } }) => 
-                  p.lessons?.modules?.course_id === course.id
+              const completedInCourse = (completedLessons as any[])?.filter(
+                (p) => p.lessons?.modules?.course_id === course.id
               ).length || 0
 
               const totalLessons = total || 0
