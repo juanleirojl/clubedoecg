@@ -508,10 +508,13 @@ export default function ModulosPage({
             <div className="space-y-2">
               <label className="text-sm font-medium">URL do Vídeo (Panda Video) *</label>
               <Input
-                placeholder="https://player.pandavideo.com.br/..."
+                placeholder="https://...pandavideo.com.br/.../playlist.m3u8"
                 value={lessonForm.video_url}
                 onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })}
               />
+              <p className="text-xs text-gray-500">
+                Suporta: HLS (.m3u8) ou Embed (?v=ID)
+              </p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Duração (segundos)</label>

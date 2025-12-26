@@ -56,3 +56,4 @@ export async function revalidateAll() {
   return revalidateCache(["courses", "all-courses", "lessons", "quizzes"])
 }
 
+
