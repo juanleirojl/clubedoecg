@@ -9,10 +9,11 @@ interface SwitchProps {
   onCheckedChange?: (checked: boolean) => void
   disabled?: boolean
   className?: string
+  size?: "sm" | "md" | "lg"
 }
 
 const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
-  ({ checked, defaultChecked, onCheckedChange, disabled, className, ...props }, ref) => {
+  ({ checked, defaultChecked, onCheckedChange, disabled, className, size = "md", ...props }, ref) => {
     const [isChecked, setIsChecked] = React.useState(defaultChecked || checked || false)
     
     React.useEffect(() => {
@@ -28,6 +29,14 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
       onCheckedChange?.(newValue)
     }
     
+    const sizes = {
+      sm: { track: "h-5 w-9", thumb: "h-4 w-4", translate: "translate-x-4" },
+      md: { track: "h-6 w-11", thumb: "h-5 w-5", translate: "translate-x-5" },
+      lg: { track: "h-7 w-14", thumb: "h-6 w-6", translate: "translate-x-7" },
+    }
+    
+    const { track, thumb, translate } = sizes[size]
+    
     return (
       <button
         type="button"
@@ -37,18 +46,35 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
         ref={ref}
         onClick={handleClick}
         className={cn(
-          "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "relative inline-flex shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          isChecked ? "bg-primary" : "bg-input",
+          isChecked ? "bg-green-500" : "bg-slate-300 dark:bg-slate-600",
+          track,
           className
         )}
         {...props}
       >
+        {/* Labels ON/OFF */}
+        <span className={cn(
+          "absolute left-1 text-[8px] font-bold uppercase transition-opacity",
+          isChecked ? "opacity-100 text-white" : "opacity-0"
+        )}>
+          ON
+        </span>
+        <span className={cn(
+          "absolute right-1 text-[8px] font-bold uppercase transition-opacity",
+          isChecked ? "opacity-0" : "opacity-100 text-slate-500 dark:text-slate-400"
+        )}>
+          OFF
+        </span>
+        
+        {/* Thumb */}
         <span
           className={cn(
-            "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
-            isChecked ? "translate-x-5" : "translate-x-0"
+            "pointer-events-none block rounded-full bg-white shadow-lg ring-0 transition-transform duration-200",
+            thumb,
+            isChecked ? translate : "translate-x-0"
           )}
         />
       </button>
@@ -58,4 +84,3 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
 Switch.displayName = "Switch"
 
 export { Switch }
-

@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
-import Link from "next/link"
 import { 
   User, 
   Mail, 
@@ -12,12 +11,15 @@ import {
   CreditCard,
   Shield,
   LogOut,
-  ChevronRight,
   Camera,
   Save,
   Loader2,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Sun,
+  Moon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,25 +27,44 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useUser } from "@/contexts/user-context"
+import { useTheme } from "@/contexts/theme-context"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
 
 export default function ConfiguracoesPage() {
   const { user, profile } = useUser()
+  const { theme, setTheme } = useTheme()
   const router = useRouter()
   const supabase = createClient()
   
   // Estados do formulário
-  const [fullName, setFullName] = useState(profile?.full_name || "")
+  const [fullName, setFullName] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState("")
+  
+  // Estados de alteração de senha
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [passwordError, setPasswordError] = useState("")
   
   // Estados de preferências
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [progressReminders, setProgressReminders] = useState(true)
   const [newContentAlerts, setNewContentAlerts] = useState(true)
+  
+  // Carregar dados do perfil
+  useEffect(() => {
+    if (profile?.full_name) {
+      setFullName(profile.full_name)
+    }
+  }, [profile])
   
   // Salvar perfil
   const handleSaveProfile = async () => {
@@ -63,10 +84,49 @@ export default function ConfiguracoesPage() {
       
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
-    } catch (error) {
+    } catch {
       setSaveError("Erro ao salvar. Tente novamente.")
     } finally {
       setIsSaving(false)
+    }
+  }
+  
+  // Alterar senha
+  const handleChangePassword = async () => {
+    if (!user) return
+    
+    // Validações
+    if (newPassword.length < 6) {
+      setPasswordError("A nova senha deve ter pelo menos 6 caracteres")
+      return
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError("As senhas não coincidem")
+      return
+    }
+    
+    setIsChangingPassword(true)
+    setPasswordError("")
+    setPasswordSuccess(false)
+    
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+      
+      if (error) throw error
+      
+      setPasswordSuccess(true)
+      setShowPasswordForm(false)
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      setTimeout(() => setPasswordSuccess(false), 3000)
+    } catch {
+      setPasswordError("Erro ao alterar senha. Tente novamente.")
+    } finally {
+      setIsChangingPassword(false)
     }
   }
   
@@ -140,9 +200,9 @@ export default function ConfiguracoesPage() {
             <div className="relative">
               <Input
                 id="email"
-                value={user?.email || ""}
+                value={profile?.email || user?.email || "Carregando..."}
                 disabled
-                className="bg-slate-50 dark:bg-slate-800"
+                className="bg-slate-50 dark:bg-slate-800 pr-10"
               />
               <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             </div>
@@ -187,7 +247,7 @@ export default function ConfiguracoesPage() {
         </CardContent>
       </Card>
 
-      {/* Segurança */}
+      {/* Segurança - Alterar Senha */}
       <Card className="border-0 shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -199,16 +259,93 @@ export default function ConfiguracoesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <button className="w-full flex items-center justify-between p-4 rounded-lg border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            <div className="flex items-center gap-3">
-              <Lock className="w-5 h-5 text-muted-foreground" />
-              <div className="text-left">
-                <p className="font-medium">Alterar Senha</p>
-                <p className="text-sm text-muted-foreground">Atualize sua senha de acesso</p>
+          {!showPasswordForm ? (
+            <button 
+              onClick={() => setShowPasswordForm(true)}
+              className="w-full flex items-center justify-between p-4 rounded-lg border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Lock className="w-5 h-5 text-muted-foreground" />
+                <div className="text-left">
+                  <p className="font-medium">Alterar Senha</p>
+                  <p className="text-sm text-muted-foreground">Atualize sua senha de acesso</p>
+                </div>
+              </div>
+              {passwordSuccess && (
+                <span className="text-green-600 text-sm flex items-center gap-1">
+                  <Check className="w-4 h-4" />
+                  Alterada!
+                </span>
+              )}
+            </button>
+          ) : (
+            <div className="space-y-4 p-4 rounded-lg border bg-slate-50 dark:bg-slate-800/50">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Nova Senha</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repita a nova senha"
+                />
+              </div>
+              
+              {passwordError && (
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertTriangle className="w-4 h-4" />
+                  {passwordError}
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleChangePassword}
+                  disabled={isChangingPassword || !newPassword || !confirmPassword}
+                >
+                  {isChangingPassword ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Alterando...
+                    </>
+                  ) : (
+                    "Alterar Senha"
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowPasswordForm(false)
+                    setNewPassword("")
+                    setConfirmPassword("")
+                    setPasswordError("")
+                  }}
+                >
+                  Cancelar
+                </Button>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </button>
+          )}
         </CardContent>
       </Card>
 
@@ -223,37 +360,75 @@ export default function ConfiguracoesPage() {
             Configure como você quer receber atualizações
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="font-medium">Notificações por Email</p>
               <p className="text-sm text-muted-foreground">Receba atualizações importantes</p>
             </div>
             <Switch 
               checked={emailNotifications} 
               onCheckedChange={setEmailNotifications}
+              size="lg"
             />
           </div>
           
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="font-medium">Lembretes de Progresso</p>
               <p className="text-sm text-muted-foreground">Lembrar de continuar os estudos</p>
             </div>
             <Switch 
               checked={progressReminders} 
               onCheckedChange={setProgressReminders}
+              size="lg"
             />
           </div>
           
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="font-medium">Novos Conteúdos</p>
               <p className="text-sm text-muted-foreground">Avisar quando houver novas aulas</p>
             </div>
             <Switch 
               checked={newContentAlerts} 
               onCheckedChange={setNewContentAlerts}
+              size="lg"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Aparência - Tema */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="w-5 h-5 text-primary" />
+            Aparência
+          </CardTitle>
+          <CardDescription>
+            Personalize a interface
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {theme === "dark" ? (
+                <Moon className="w-5 h-5 text-blue-400" />
+              ) : (
+                <Sun className="w-5 h-5 text-yellow-500" />
+              )}
+              <div>
+                <p className="font-medium">Tema {theme === "dark" ? "Escuro" : "Claro"}</p>
+                <p className="text-sm text-muted-foreground">
+                  {theme === "dark" ? "Melhor para ambientes escuros" : "Melhor para ambientes claros"}
+                </p>
+              </div>
+            </div>
+            <Switch 
+              checked={theme === "dark"} 
+              onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+              size="lg"
             />
           </div>
         </CardContent>
@@ -286,30 +461,8 @@ export default function ConfiguracoesPage() {
         </CardContent>
       </Card>
 
-      {/* Aparência */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Palette className="w-5 h-5 text-primary" />
-            Aparência
-          </CardTitle>
-          <CardDescription>
-            Personalize a interface
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Tema Escuro</p>
-              <p className="text-sm text-muted-foreground">Usar tema escuro na plataforma</p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Sair */}
-      <Card className="border-0 shadow-sm border-red-200 dark:border-red-800">
+      <Card className="border-0 shadow-sm">
         <CardContent className="p-6">
           <Button 
             variant="destructive" 
@@ -327,4 +480,3 @@ export default function ConfiguracoesPage() {
     </div>
   )
 }
-
