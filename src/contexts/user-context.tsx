@@ -103,7 +103,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     streak: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
-  const [userId, setUserId] = useState<string | null>(null)
+  // userId usado internamente mas exposto via profile.id
+  const [_userId, _setUserId] = useState<string | null>(null)
 
   // Função principal de carregamento - UMA VEZ por sessão
   const loadUserData = useCallback(async () => {
@@ -116,21 +117,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return
     }
     
-    setUserId(user.id)
+    _setUserId(user.id)
 
     // Verificar cache de cursos
     const now = Date.now()
     const useCache = cachedCourses && (now - cacheTimestamp) < CACHE_TTL
 
     // Preparar queries - TODAS em paralelo
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const profileQuery = supabase
       .from("profiles")
       .select("id, email, full_name, avatar_url, role, subscription_plan, total_watch_time, current_streak")
       .eq("id", user.id)
       .single()
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const quizzesCountQuery = supabase
       .from("quiz_attempts")
       .select("id", { count: "exact", head: true })
@@ -138,21 +139,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
       .gte("score", 100)
     
     // Buscar melhor score de cada quiz (para mostrar quizzes concluídos)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const quizScoresQuery = supabase
       .from("quiz_attempts")
       .select("quiz_id, score")
       .eq("user_id", user.id)
       .order("score", { ascending: false })
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const progressQuery = supabase
       .from("user_lesson_progress")
       .select("lesson_id")
       .eq("user_id", user.id)
       .eq("completed", true)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const coursesQuery = !useCache ? supabase
       .from("courses")
       .select(`

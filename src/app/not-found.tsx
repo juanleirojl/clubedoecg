@@ -1,9 +1,10 @@
 import Link from "next/link"
-import { Home, ArrowLeft } from "lucide-react"
+import { Home } from "lucide-react"
 import { ROUTES, BRAND_COLORS } from "@/lib/constants"
 
 /**
  * Página 404 customizada
+ * Nota: Componentes Server não podem ter onClick handlers
  */
 export default function NotFound() {
   return (
@@ -40,16 +41,14 @@ export default function NotFound() {
             Ir para o início
           </Link>
 
-          <button
-            onClick={() => typeof window !== "undefined" && window.history.back()}
+          <Link
+            href={ROUTES.DASHBOARD}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-white/80 bg-white/10 hover:bg-white/20 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar
-          </button>
+            Dashboard
+          </Link>
         </div>
       </div>
     </div>
   )
 }
-

@@ -12,8 +12,6 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronRight,
-  Save,
-  X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,7 +35,7 @@ import {
   deleteLesson,
   createQuiz,
 } from "@/lib/supabase/admin"
-import { cn } from "@/lib/utils"
+// import { cn } from "@/lib/utils" // Não usado atualmente
 
 interface Lesson {
   id: string
@@ -210,7 +208,7 @@ export default function ModulosPage({
     
     setIsSaving(true)
     try {
-      const module = modules.find(m => m.id === selectedModuleId)
+      const currentModule = modules.find(m => m.id === selectedModuleId)
       
       if (editingLesson) {
         await updateLesson(editingLesson.id, lessonForm)
@@ -218,7 +216,7 @@ export default function ModulosPage({
         await createLesson({
           module_id: selectedModuleId,
           ...lessonForm,
-          order_index: module?.lessons.length || 0,
+          order_index: currentModule?.lessons.length || 0,
         })
       }
       await loadData()
@@ -249,11 +247,11 @@ export default function ModulosPage({
     if (!title) return
     
     try {
-      const module = modules.find(m => m.id === moduleId)
+      const quizModule = modules.find(m => m.id === moduleId)
       const quiz = await createQuiz({
         module_id: moduleId,
         title,
-        order_index: module?.quizzes.length || 0,
+        order_index: quizModule?.quizzes.length || 0,
       })
       
       // Redireciona para editar o quiz

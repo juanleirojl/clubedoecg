@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Search, BookOpen, Clock, Award, Play, Lock, Loader2, ChevronRight, Sparkles, TrendingUp } from "lucide-react"
+import { Search, Play, Lock, Loader2, ChevronRight, Sparkles, TrendingUp } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -58,8 +58,8 @@ export default function CoursesNetflix2Page() {
   // Curso principal (o mais avançado)
   const featuredCourse = coursesInProgress[0] || courses[0]
 
-  // Cursos não iniciados
-  const coursesNotStarted = courses.filter(c => c.progress === 0)
+  // Cursos não iniciados (mantido para referência futura)
+  // const coursesNotStarted = courses.filter(c => c.progress === 0)
 
   if (isLoading) {
     return (

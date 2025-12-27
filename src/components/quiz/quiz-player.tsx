@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils"
 import { QuizQuestion } from "@/types"
 
 // Dynamic import do ReactPlayer - carrega apenas quando necessário
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const ReactPlayer = dynamic(
   () => import("react-player").then((mod) => mod.default),
   { 

@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { PROTECTED_ROUTES, ROUTES } from '@/lib/constants'
+import { PROTECTED_ROUTES } from '@/lib/constants'
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   
   // Cria response base
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -46,7 +46,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Verifica se é admin
-    const { data: profile, error } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)

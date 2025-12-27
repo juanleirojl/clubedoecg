@@ -9,7 +9,7 @@ import Link from "next/link"
  * Renderiza seu próprio HTML pois não tem acesso ao layout
  */
 export default function GlobalError({
-  error,
+  error: _error,
   reset,
 }: {
   error: Error & { digest?: string }

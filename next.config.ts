@@ -78,7 +78,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Headers de segurança
+        // Headers de segurança completos
         source: '/(.*)',
         headers: [
           {
@@ -87,11 +87,23 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'SAMEORIGIN', // Permite iframes do mesmo domínio (para embeds)
           },
           {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
           },
         ],
       },

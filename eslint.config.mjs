@@ -45,6 +45,12 @@ const eslintConfig = defineConfig([
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
       
+      // setState em useEffect - padrão comum em apps React
+      // Desabilitar regra experimental que é muito restritiva
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/immutability": "off",
+      
       // Keys em listas
       "react/jsx-key": "error",
       

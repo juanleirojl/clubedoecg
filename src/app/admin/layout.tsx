@@ -66,7 +66,7 @@ export default function AdminLayout({
         .single()
 
       if (error || !profileData || profileData.role !== "admin") {
-        console.log("Acesso negado: usuário não é admin", { profileData, error })
+        // Acesso negado: usuário não é admin
         router.push("/dashboard")
         return
       }

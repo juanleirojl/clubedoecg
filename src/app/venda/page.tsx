@@ -4,13 +4,9 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { 
-  CheckCircle2, 
-  Heart, 
-  Zap, 
+  CheckCircle2,  
   Shield, 
-  Clock, 
-  Award,
-  Users,
+  Clock,
   BookOpen,
   Target,
   AlertTriangle,
@@ -24,13 +20,8 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// Cores da identidade visual
-const colors = {
-  primary: "#9d1915",
-  secondary: "#7db975",
-  light: "#f5f4ec",
-  cream: "#fbefce",
-}
+// Cores da identidade visual (usar BRAND_COLORS de constants.ts em vez de hardcoded)
+// Mantido aqui apenas para referência local
 
 // Componente de seção
 function Section({ 
@@ -90,13 +81,11 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
 function Testimonial({ 
   name, 
   role, 
-  text, 
-  avatar 
+  text,
 }: { 
   name: string
   role: string
   text: string
-  avatar?: string 
 }) {
   return (
     <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
@@ -109,7 +98,7 @@ function Testimonial({
           <p className="text-white/50 text-sm">{role}</p>
         </div>
       </div>
-      <p className="text-white/80 italic">"{text}"</p>
+      <p className="text-white/80 italic">&ldquo;{text}&rdquo;</p>
       <div className="flex gap-1 mt-4">
         {[...Array(5)].map((_, i) => (
           <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />

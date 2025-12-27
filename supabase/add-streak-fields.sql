@@ -12,3 +12,4 @@ COMMENT ON COLUMN profiles.total_watch_time IS 'Tempo total de estudo em segundo
 
 
 
+

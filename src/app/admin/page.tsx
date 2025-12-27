@@ -219,7 +219,7 @@ export default function AdminDashboard() {
             </p>
             <p>
               <strong>2. Adicionar Módulos:</strong> Dentro do curso, crie módulos 
-              para organizar o conteúdo (ex: "Nível 1: Fundamentos").
+              para organizar o conteúdo (ex: &ldquo;Nível 1: Fundamentos&rdquo;).
             </p>
             <p>
               <strong>3. Adicionar Aulas:</strong> Em cada módulo, adicione aulas 

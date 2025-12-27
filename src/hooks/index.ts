@@ -5,6 +5,6 @@
 export { useAuth } from "./use-auth"
 export { useDebounce, useDebouncedCallback } from "./use-debounce"
 export { useLocalStorage } from "./use-local-storage"
-export { useMobile } from "./use-mobile"
-export { useProgress } from "./use-progress"
+export { useIsMobile } from "./use-mobile"
+export { useVideoProgress, useCourseProgress, useQuizProgress } from "./use-progress"
 

@@ -66,8 +66,26 @@ export default function UsuariosPage() {
 
   const supabase = createClient()
 
+  // Função para carregar usuários
+  const loadUsers = async () => {
+    setIsLoading(true)
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Erro ao carregar usuários:", error)
+    } else {
+      setUsers(data || [])
+      setFilteredUsers(data || [])
+    }
+    setIsLoading(false)
+  }
+
   useEffect(() => {
     loadUsers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -83,21 +101,7 @@ export default function UsuariosPage() {
     }
   }, [searchTerm, users])
 
-  async function loadUsers() {
-    setIsLoading(true)
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("Erro ao carregar usuários:", error)
-    } else {
-      setUsers(data || [])
-      setFilteredUsers(data || [])
-    }
-    setIsLoading(false)
-  }
+  // Esta função foi movida para cima como loadUsers
 
   async function saveUser() {
     if (!editingUser) return

@@ -60,7 +60,8 @@ export default function LessonPage({
   
   // Usar contexto para perfil - EVITA query duplicada!
   const { profile, isPro, isLoading: userLoading, completedLessonIds, completedQuizIds, quizBestScores, markLessonCompleted } = useUser()
-  const userPlan = profile?.subscription_plan || "free"
+  // userPlan reservado para futuras verificações de planos específicos
+  const _userPlan = profile?.subscription_plan || "free"
 
   // Hook de progresso do vídeo
   const {
@@ -69,7 +70,7 @@ export default function LessonPage({
     isLoading: progressLoading,
     updateProgress,
     markComplete,
-    saveOnExit,
+    // saveOnExit não está sendo usado atualmente
   } = useVideoProgress(lessonId)
 
   // Buscar APENAS dados da aula - perfil vem do contexto
@@ -145,22 +146,18 @@ export default function LessonPage({
 
   // Handlers
   // Verificar acesso quando lesson ou userPlan mudarem
-  useEffect(() => {
-    if (!lesson) return
-    
+  // Usamos um cálculo derivado ao invés de useEffect para evitar re-renders cascata
+  const computedHasAccess = (() => {
+    if (!lesson) return false
     const isFreeLesson = lesson.is_free === true
-    
-    if (isPro) {
-      // PRO tem acesso a tudo
-      setHasAccess(true)
-    } else if (userPlan === "basic") {
-      // Básico tem acesso a aulas gratuitas (por enquanto)
-      setHasAccess(isFreeLesson)
-    } else {
-      // Free só tem acesso a aulas marcadas como gratuitas
-      setHasAccess(isFreeLesson)
-    }
-  }, [lesson, userPlan, isPro])
+    if (isPro) return true
+    return isFreeLesson
+  })()
+
+  // Sincroniza estado apenas quando o valor computado muda
+  useEffect(() => {
+    setHasAccess(computedHasAccess)
+  }, [computedHasAccess])
 
   const handleProgress = (progress: { played: number; playedSeconds: number }) => {
     if (lesson?.duration_seconds) {

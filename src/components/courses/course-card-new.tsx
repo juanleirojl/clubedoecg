@@ -6,7 +6,7 @@ import { Clock, BookOpen, Award, Play, Bookmark } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { BeltBadge } from "./belt-icon"
-import { cn } from "@/lib/utils"
+// import { cn } from "@/lib/utils" // Não usado atualmente
 
 interface CourseCardNewProps {
   course: {

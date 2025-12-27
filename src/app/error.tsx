@@ -12,3 +12,4 @@ export default function Error({
   return <PageError error={error} reset={reset} />
 }
 
+
