@@ -72,9 +72,10 @@ interface EmailLog {
   email_type: string
   subject: string
   status: string
-  created_at: string
+  sent_at: string
   opened_at: string | null
   clicked_at: string | null
+  resend_id: string | null
 }
 
 interface Campaign {
@@ -156,7 +157,7 @@ export default function AdminEmailsPage() {
       const { data: recentData } = await supabase
         .from("email_log")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("sent_at", { ascending: false })
         .limit(20)
       
       if (recentData) setRecentEmails(recentData)
@@ -639,7 +640,7 @@ export default function AdminEmailsPage() {
                     </div>
                     <div className="flex items-center gap-3 ml-4">
                       <span className="text-xs text-gray-500">
-                        {formatDate(email.created_at)}
+                        {formatDate(email.sent_at)}
                       </span>
                       {getStatusBadge(email.status)}
                     </div>

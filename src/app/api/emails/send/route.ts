@@ -51,6 +51,24 @@ export async function POST(request: NextRequest) {
       )
     }
     
+    // Validar formato do email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(to)) {
+      return NextResponse.json(
+        { error: "Formato de email inválido" }, 
+        { status: 400 }
+      )
+    }
+    
+    // Validar tipo de email permitido
+    const validTypes = ["reminder", "new_content", "weekly_summary", "welcome", "campaign"]
+    if (!validTypes.includes(type)) {
+      return NextResponse.json(
+        { error: "Tipo de email inválido" }, 
+        { status: 400 }
+      )
+    }
+    
     // Verificar se pode enviar (a menos que force=true)
     if (!force && userId) {
       const canSend = await canSendEmailToUser(userId, type)
