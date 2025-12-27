@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-
-// Rotas que precisam de autenticação
-const protectedRoutes = ['/dashboard', '/cursos', '/conquistas', '/perfil', '/configuracoes', '/aula', '/quiz']
+import { PROTECTED_ROUTES, ROUTES } from '@/lib/constants'
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
@@ -54,21 +52,16 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    console.log('[MIDDLEWARE] Admin check:', { userId: user.id, profile, error })
-
     if (!profile || profile.role !== 'admin') {
       // Não é admin, redireciona para dashboard
-      console.log('[MIDDLEWARE] Usuário não é admin, redirecionando...')
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
-    
-    console.log('[MIDDLEWARE] Usuário é admin, permitindo acesso')
   }
 
   // =============================================
   // PROTEÇÃO DE ROTAS DO DASHBOARD
   // =============================================
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route))
   
   if (isProtectedRoute && !user) {
     const loginUrl = new URL('/login', request.url)
