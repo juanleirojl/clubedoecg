@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { 
   User, 
@@ -31,11 +31,21 @@ import { useTheme } from "@/contexts/theme-context"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
+interface UserSettings {
+  email_notifications: boolean
+  progress_reminders: boolean
+  new_content_alerts: boolean
+  theme: 'light' | 'dark' | 'system'
+}
+
 export default function ConfiguracoesPage() {
-  const { user, profile } = useUser()
+  const { profile } = useUser()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const supabase = createClient()
+  
+  // Estado para o user do Auth (não vem do contexto)
+  const [authUser, setAuthUser] = useState<{ id: string; email?: string } | null>(null)
   
   // Estados do formulário
   const [fullName, setFullName] = useState("")
@@ -45,19 +55,33 @@ export default function ConfiguracoesPage() {
   
   // Estados de alteração de senha
   const [showPasswordForm, setShowPasswordForm] = useState(false)
-  const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [passwordError, setPasswordError] = useState("")
   
-  // Estados de preferências
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [progressReminders, setProgressReminders] = useState(true)
-  const [newContentAlerts, setNewContentAlerts] = useState(true)
+  // Estados de preferências (do banco de dados)
+  const [settings, setSettings] = useState<UserSettings>({
+    email_notifications: true,
+    progress_reminders: true,
+    new_content_alerts: true,
+    theme: 'dark'
+  })
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true)
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
+  
+  // Carregar dados do usuário autenticado
+  useEffect(() => {
+    const getAuthUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setAuthUser({ id: user.id, email: user.email })
+      }
+    }
+    getAuthUser()
+  }, [supabase.auth])
   
   // Carregar dados do perfil
   useEffect(() => {
@@ -66,9 +90,105 @@ export default function ConfiguracoesPage() {
     }
   }, [profile])
   
+  // Carregar configurações do banco de dados
+  const loadSettings = useCallback(async () => {
+    if (!authUser?.id) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .maybeSingle()
+      
+      if (error) {
+        throw error
+      }
+      
+      if (!data) {
+        // Se não existe, criar
+        const { data: newData, error: insertError } = await supabase
+          .from('user_settings')
+          .insert({ user_id: authUser.id })
+          .select()
+          .single()
+        
+        if (insertError) {
+          // Ignorar erro de duplicidade
+          if (!insertError.message.includes('duplicate')) {
+            throw insertError
+          }
+        }
+        
+        if (newData) {
+          setSettings({
+            email_notifications: newData.email_notifications ?? true,
+            progress_reminders: newData.progress_reminders ?? true,
+            new_content_alerts: newData.new_content_alerts ?? true,
+            theme: newData.theme ?? 'dark'
+          })
+        }
+      } else {
+        setSettings({
+          email_notifications: data.email_notifications ?? true,
+          progress_reminders: data.progress_reminders ?? true,
+          new_content_alerts: data.new_content_alerts ?? true,
+          theme: data.theme ?? 'dark'
+        })
+        
+        // Sincronizar tema
+        if (data.theme && data.theme !== theme) {
+          setTheme(data.theme)
+        }
+      }
+    } catch {
+      // Silenciar erro, usar valores padrão
+    } finally {
+      setIsLoadingSettings(false)
+    }
+  }, [authUser?.id, supabase, theme, setTheme])
+  
+  useEffect(() => {
+    if (authUser?.id) {
+      loadSettings()
+    }
+  }, [authUser?.id, loadSettings])
+  
+  // Salvar configuração individual
+  const saveSettings = async (field: keyof UserSettings, value: boolean | string) => {
+    if (!authUser?.id) return
+    
+    setIsSavingSettings(true)
+    
+    try {
+      const { error } = await supabase
+        .from('user_settings')
+        .update({ 
+          [field]: value,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', authUser.id)
+      
+      if (error) throw error
+      
+      // Atualizar estado local
+      setSettings(prev => ({ ...prev, [field]: value }))
+      
+      // Se for tema, atualizar o contexto
+      if (field === 'theme') {
+        setTheme(value as 'light' | 'dark')
+      }
+    } catch {
+      // Reverter em caso de erro
+      loadSettings()
+    } finally {
+      setIsSavingSettings(false)
+    }
+  }
+  
   // Salvar perfil
   const handleSaveProfile = async () => {
-    if (!user) return
+    if (!authUser?.id) return
     
     setIsSaving(true)
     setSaveError("")
@@ -78,7 +198,7 @@ export default function ConfiguracoesPage() {
       const { error } = await supabase
         .from('profiles')
         .update({ full_name: fullName })
-        .eq('id', user.id)
+        .eq('id', authUser.id)
       
       if (error) throw error
       
@@ -93,7 +213,7 @@ export default function ConfiguracoesPage() {
   
   // Alterar senha
   const handleChangePassword = async () => {
-    if (!user) return
+    if (!authUser?.id) return
     
     // Validações
     if (newPassword.length < 6) {
@@ -119,7 +239,6 @@ export default function ConfiguracoesPage() {
       
       setPasswordSuccess(true)
       setShowPasswordForm(false)
-      setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
       setTimeout(() => setPasswordSuccess(false), 3000)
@@ -134,6 +253,24 @@ export default function ConfiguracoesPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  // Handlers para notificações
+  const handleEmailNotifications = (checked: boolean) => {
+    saveSettings('email_notifications', checked)
+  }
+  
+  const handleProgressReminders = (checked: boolean) => {
+    saveSettings('progress_reminders', checked)
+  }
+  
+  const handleNewContentAlerts = (checked: boolean) => {
+    saveSettings('new_content_alerts', checked)
+  }
+  
+  const handleThemeChange = (isDark: boolean) => {
+    const newTheme = isDark ? 'dark' : 'light'
+    saveSettings('theme', newTheme)
   }
 
   return (
@@ -169,7 +306,7 @@ export default function ConfiguracoesPage() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-500 to-orange-500 text-white text-2xl font-bold">
-                    {(fullName || user?.email || "U")[0].toUpperCase()}
+                    {(fullName || authUser?.email || "U")[0].toUpperCase()}
                   </div>
                 )}
               </div>
@@ -200,7 +337,7 @@ export default function ConfiguracoesPage() {
             <div className="relative">
               <Input
                 id="email"
-                value={profile?.email || user?.email || "Carregando..."}
+                value={profile?.email || authUser?.email || "Carregando..."}
                 disabled
                 className="bg-slate-50 dark:bg-slate-800 pr-10"
               />
@@ -355,47 +492,56 @@ export default function ConfiguracoesPage() {
           <CardTitle className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary" />
             Notificações
+            {isSavingSettings && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
           </CardTitle>
           <CardDescription>
             Configure como você quer receber atualizações
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="font-medium">Notificações por Email</p>
-              <p className="text-sm text-muted-foreground">Receba atualizações importantes</p>
+          {isLoadingSettings ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-            <Switch 
-              checked={emailNotifications} 
-              onCheckedChange={setEmailNotifications}
-              size="lg"
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="font-medium">Lembretes de Progresso</p>
-              <p className="text-sm text-muted-foreground">Lembrar de continuar os estudos</p>
-            </div>
-            <Switch 
-              checked={progressReminders} 
-              onCheckedChange={setProgressReminders}
-              size="lg"
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="font-medium">Novos Conteúdos</p>
-              <p className="text-sm text-muted-foreground">Avisar quando houver novas aulas</p>
-            </div>
-            <Switch 
-              checked={newContentAlerts} 
-              onCheckedChange={setNewContentAlerts}
-              size="lg"
-            />
-          </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-medium">Notificações por Email</p>
+                  <p className="text-sm text-muted-foreground">Receba atualizações importantes</p>
+                </div>
+                <Switch 
+                  checked={settings.email_notifications} 
+                  onCheckedChange={handleEmailNotifications}
+                  size="lg"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-medium">Lembretes de Progresso</p>
+                  <p className="text-sm text-muted-foreground">Lembrar de continuar os estudos</p>
+                </div>
+                <Switch 
+                  checked={settings.progress_reminders} 
+                  onCheckedChange={handleProgressReminders}
+                  size="lg"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-medium">Novos Conteúdos</p>
+                  <p className="text-sm text-muted-foreground">Avisar quando houver novas aulas</p>
+                </div>
+                <Switch 
+                  checked={settings.new_content_alerts} 
+                  onCheckedChange={handleNewContentAlerts}
+                  size="lg"
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -405,6 +551,7 @@ export default function ConfiguracoesPage() {
           <CardTitle className="flex items-center gap-2">
             <Palette className="w-5 h-5 text-primary" />
             Aparência
+            {isSavingSettings && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
           </CardTitle>
           <CardDescription>
             Personalize a interface
@@ -427,8 +574,9 @@ export default function ConfiguracoesPage() {
             </div>
             <Switch 
               checked={theme === "dark"} 
-              onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+              onCheckedChange={handleThemeChange}
               size="lg"
+              disabled={isLoadingSettings}
             />
           </div>
         </CardContent>
