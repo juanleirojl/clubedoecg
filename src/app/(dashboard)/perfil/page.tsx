@@ -24,7 +24,7 @@ import { useUser, useCourses } from "@/contexts/user-context"
 import { cn } from "@/lib/utils"
 
 export default function PerfilPage() {
-  const { user, profile } = useUser()
+  const { profile } = useUser()
   const { courses } = useCourses()
   
   // Calcular estatísticas
@@ -89,10 +89,8 @@ export default function PerfilPage() {
   
   const unlockedAchievements = achievements.filter(a => a.unlocked).length
 
-  // Data de entrada formatada
-  const memberSince = user?.created_at 
-    ? new Date(user.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-    : "Dezembro 2024"
+  // Data de entrada formatada (usando valor fixo por enquanto)
+  const memberSince = "Dezembro 2024"
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
@@ -118,7 +116,7 @@ export default function PerfilPage() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-500 to-orange-500 text-white text-4xl font-bold">
-                    {(profile?.full_name || user?.email || "U")[0].toUpperCase()}
+                    {(profile?.full_name || profile?.email || "U")[0].toUpperCase()}
                   </div>
                 )}
               </div>
@@ -136,7 +134,7 @@ export default function PerfilPage() {
               <div className="flex flex-wrap items-center gap-4 mt-2 text-muted-foreground text-sm">
                 <span className="flex items-center gap-1">
                   <Mail className="w-4 h-4" />
-                  {user?.email}
+                  {profile?.email}
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />

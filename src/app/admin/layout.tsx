@@ -14,7 +14,8 @@ import {
   Shield,
   Loader2,
   Menu,
-  X
+  X,
+  Mail
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -33,6 +34,7 @@ const navigation = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Cursos", href: "/admin/cursos", icon: BookOpen },
   { name: "Usuários", href: "/admin/usuarios", icon: Users },
+  { name: "Emails", href: "/admin/emails", icon: Mail },
   { name: "Configurações", href: "/admin/configuracoes", icon: Settings },
 ]
 

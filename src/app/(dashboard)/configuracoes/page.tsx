@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Image from "next/image"
 import { 
   User, 
@@ -19,7 +19,8 @@ import {
   Eye,
   EyeOff,
   Sun,
-  Moon
+  Moon,
+  X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,14 +36,17 @@ interface UserSettings {
   email_notifications: boolean
   progress_reminders: boolean
   new_content_alerts: boolean
+  weekly_summary: boolean
+  reminder_frequency: 'daily' | 'weekly' | 'monthly' | 'never'
   theme: 'light' | 'dark' | 'system'
 }
 
 export default function ConfiguracoesPage() {
-  const { profile } = useUser()
+  const { profile, refreshData } = useUser()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const supabase = createClient()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Estado para o user do Auth (não vem do contexto)
   const [authUser, setAuthUser] = useState<{ id: string; email?: string } | null>(null)
@@ -52,6 +56,12 @@ export default function ConfiguracoesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState("")
+  
+  // Estados para upload de avatar
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [avatarError, setAvatarError] = useState("")
   
   // Estados de alteração de senha
   const [showPasswordForm, setShowPasswordForm] = useState(false)
@@ -67,6 +77,8 @@ export default function ConfiguracoesPage() {
     email_notifications: true,
     progress_reminders: true,
     new_content_alerts: true,
+    weekly_summary: true,
+    reminder_frequency: 'weekly',
     theme: 'dark'
   })
   const [isLoadingSettings, setIsLoadingSettings] = useState(true)
@@ -87,6 +99,9 @@ export default function ConfiguracoesPage() {
   useEffect(() => {
     if (profile?.full_name) {
       setFullName(profile.full_name)
+    }
+    if (profile?.avatar_url) {
+      setAvatarUrl(profile.avatar_url)
     }
   }, [profile])
   
@@ -125,6 +140,8 @@ export default function ConfiguracoesPage() {
             email_notifications: newData.email_notifications ?? true,
             progress_reminders: newData.progress_reminders ?? true,
             new_content_alerts: newData.new_content_alerts ?? true,
+            weekly_summary: newData.weekly_summary ?? true,
+            reminder_frequency: newData.reminder_frequency ?? 'weekly',
             theme: newData.theme ?? 'dark'
           })
         }
@@ -133,6 +150,8 @@ export default function ConfiguracoesPage() {
           email_notifications: data.email_notifications ?? true,
           progress_reminders: data.progress_reminders ?? true,
           new_content_alerts: data.new_content_alerts ?? true,
+          weekly_summary: data.weekly_summary ?? true,
+          reminder_frequency: data.reminder_frequency ?? 'weekly',
           theme: data.theme ?? 'dark'
         })
         
@@ -254,6 +273,122 @@ export default function ConfiguracoesPage() {
     await supabase.auth.signOut()
     router.push('/login')
   }
+  
+  // Upload de avatar
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click()
+  }
+  
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !authUser?.id) return
+    
+    // Validar tipo
+    if (!file.type.startsWith('image/')) {
+      setAvatarError("Selecione uma imagem válida (JPG, PNG ou GIF)")
+      return
+    }
+    
+    // Validar tamanho (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError("A imagem deve ter no máximo 2MB")
+      return
+    }
+    
+    setAvatarError("")
+    setIsUploadingAvatar(true)
+    
+    // Mostrar preview imediato
+    const previewUrl = URL.createObjectURL(file)
+    setAvatarPreview(previewUrl)
+    
+    try {
+      // Nome do arquivo: {userId}/avatar.{ext}
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${authUser.id}/avatar.${fileExt}`
+      
+      // Remover arquivo anterior se existir
+      await supabase.storage
+        .from('avatars')
+        .remove([`${authUser.id}/avatar.jpg`, `${authUser.id}/avatar.png`, `${authUser.id}/avatar.gif`, `${authUser.id}/avatar.webp`])
+      
+      // Upload do novo arquivo
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true })
+      
+      if (uploadError) throw uploadError
+      
+      // Obter URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName)
+      
+      // Adicionar timestamp para evitar cache
+      const finalUrl = `${publicUrl}?t=${Date.now()}`
+      
+      // Atualizar profile no banco
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: finalUrl })
+        .eq('id', authUser.id)
+      
+      if (updateError) throw updateError
+      
+      // Atualizar estados
+      setAvatarUrl(finalUrl)
+      setAvatarPreview(null)
+      
+      // Atualizar contexto do usuário
+      refreshData()
+      
+    } catch (err) {
+      console.error('Erro ao fazer upload:', err)
+      setAvatarError("Erro ao fazer upload. Tente novamente.")
+      setAvatarPreview(null)
+    } finally {
+      setIsUploadingAvatar(false)
+      // Limpar input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+  
+  const handleRemoveAvatar = async () => {
+    if (!authUser?.id) return
+    
+    setIsUploadingAvatar(true)
+    
+    try {
+      // Remover arquivo do storage (tentar todas as extensões possíveis)
+      await supabase.storage
+        .from('avatars')
+        .remove([
+          `${authUser.id}/avatar.jpg`, 
+          `${authUser.id}/avatar.jpeg`, 
+          `${authUser.id}/avatar.png`, 
+          `${authUser.id}/avatar.gif`, 
+          `${authUser.id}/avatar.webp`
+        ])
+      
+      // Atualizar profile no banco
+      await supabase
+        .from('profiles')
+        .update({ avatar_url: null })
+        .eq('id', authUser.id)
+      
+      setAvatarUrl(null)
+      setAvatarPreview(null)
+      refreshData()
+      
+    } catch (err) {
+      console.error('Erro ao remover avatar:', err)
+      setAvatarError("Erro ao remover. Tente novamente.")
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
 
   // Handlers para notificações
   const handleEmailNotifications = (checked: boolean) => {
@@ -266,6 +401,14 @@ export default function ConfiguracoesPage() {
   
   const handleNewContentAlerts = (checked: boolean) => {
     saveSettings('new_content_alerts', checked)
+  }
+  
+  const handleWeeklySummary = (checked: boolean) => {
+    saveSettings('weekly_summary', checked)
+  }
+  
+  const handleReminderFrequency = (frequency: 'daily' | 'weekly' | 'monthly' | 'never') => {
+    saveSettings('reminder_frequency', frequency)
   }
   
   const handleThemeChange = (isDark: boolean) => {
@@ -296,10 +439,32 @@ export default function ConfiguracoesPage() {
           {/* Avatar */}
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-200">
-                {profile?.avatar_url ? (
+              {/* Input hidden para upload */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
+              
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-200 relative">
+                {isUploadingAvatar && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+                
+                {avatarPreview ? (
                   <Image
-                    src={profile.avatar_url}
+                    src={avatarPreview}
+                    alt="Preview"
+                    fill
+                    className="object-cover"
+                  />
+                ) : (avatarUrl || profile?.avatar_url) ? (
+                  <Image
+                    src={(avatarUrl || profile?.avatar_url) as string}
                     alt="Avatar"
                     fill
                     className="object-cover"
@@ -310,13 +475,33 @@ export default function ConfiguracoesPage() {
                   </div>
                 )}
               </div>
-              <button className="absolute bottom-0 right-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors">
+              
+              {/* Botão de câmera para upload */}
+              <button 
+                onClick={handleAvatarClick}
+                disabled={isUploadingAvatar}
+                className="absolute bottom-0 right-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
                 <Camera className="w-4 h-4" />
               </button>
+              
+              {/* Botão para remover avatar (só aparece se tiver foto) */}
+              {(avatarUrl || profile?.avatar_url) && !isUploadingAvatar && (
+                <button 
+                  onClick={handleRemoveAvatar}
+                  className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                  title="Remover foto"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
             <div>
               <p className="font-medium">Foto de Perfil</p>
               <p className="text-sm text-muted-foreground">JPG, PNG ou GIF. Máx 2MB.</p>
+              {avatarError && (
+                <p className="text-xs text-red-500 mt-1">{avatarError}</p>
+              )}
             </div>
           </div>
           
@@ -540,6 +725,49 @@ export default function ConfiguracoesPage() {
                   size="lg"
                 />
               </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-medium">Resumo Semanal</p>
+                  <p className="text-sm text-muted-foreground">Receber relatório de progresso toda semana</p>
+                </div>
+                <Switch 
+                  checked={settings.weekly_summary} 
+                  onCheckedChange={handleWeeklySummary}
+                  size="lg"
+                />
+              </div>
+              
+              {/* Frequência de Lembretes */}
+              {settings.progress_reminders && (
+                <div className="pt-4 border-t border-border">
+                  <p className="font-medium mb-3">Frequência de Lembretes</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Com que frequência deseja receber lembretes para estudar?
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: 'daily', label: 'Diário', desc: 'Se não estudar no dia' },
+                      { value: 'weekly', label: 'Semanal', desc: 'Recomendado' },
+                      { value: 'monthly', label: 'Mensal', desc: 'Apenas 1x/mês' },
+                      { value: 'never', label: 'Nunca', desc: 'Desativar lembretes' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleReminderFrequency(option.value as 'daily' | 'weekly' | 'monthly' | 'never')}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          settings.reminder_frequency === option.value
+                            ? 'border-primary bg-primary/10 text-foreground'
+                            : 'border-border hover:border-primary/50 text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <p className="font-medium text-sm">{option.label}</p>
+                        <p className="text-xs opacity-70">{option.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </CardContent>
