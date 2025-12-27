@@ -51,6 +51,8 @@ declare global {
       }) => void) => void
       getCurrentTime: () => number
       getDuration: () => number
+      loadButtonInTime?: (options: { fetchApi: boolean }) => void
+      setParentWindowUrl?: () => void
     }
   }
 }

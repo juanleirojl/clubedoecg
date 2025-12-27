@@ -6,19 +6,7 @@ import { Play, Heart, Sparkles, Zap, Trophy, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
-// Declaração global para o PandaPlayer
-declare global {
-  interface Window {
-    pandascripttag: Array<() => void>
-    PandaPlayer: new (id: string, options: {
-      onReady: () => void
-    }) => {
-      loadButtonInTime: (options: { fetchApi: boolean }) => void
-      setParentWindowUrl: () => void
-      onEvent: (callback: (e: { message: string }) => void) => void
-    }
-  }
-}
+// Tipos do PandaPlayer são declarados em video-player.tsx
 
 export default function DemoVideoPage() {
   const [isPlaying, setIsPlaying] = useState(false)
