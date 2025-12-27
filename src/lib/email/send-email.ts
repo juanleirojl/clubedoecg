@@ -214,10 +214,13 @@ export async function canSendEmailToUser(userId: string, emailType: EmailType): 
 
 /**
  * Atualiza o status de um email (para webhooks do Resend)
+ * Usa cliente admin para bypassar RLS
  */
 export async function updateEmailStatus(resendId: string, status: EmailStatus) {
   try {
-    const supabase = await createClient()
+    // Usar cliente admin para webhooks (não tem usuário autenticado)
+    const { createAdminClient } = await import("@/lib/supabase/server")
+    const supabase = createAdminClient()
     
     const updateData: Record<string, unknown> = { status }
     
@@ -229,10 +232,16 @@ export async function updateEmailStatus(resendId: string, status: EmailStatus) {
       updateData.clicked_at = new Date().toISOString()
     }
     
-    await supabase
+    const { error } = await supabase
       .from("email_log")
       .update(updateData)
       .eq("resend_id", resendId)
+    
+    if (error) {
+      console.error("Erro ao atualizar status do email:", error)
+    } else {
+      console.log(`✅ Email ${resendId} atualizado para status: ${status}`)
+    }
       
   } catch (error) {
     console.error("Erro ao atualizar status do email:", error)
