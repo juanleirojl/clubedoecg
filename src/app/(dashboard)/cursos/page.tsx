@@ -89,7 +89,7 @@ export default function CoursesPage() {
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
             <div className="max-w-xl">
               {featuredCourse.progress > 0 && (
-                <div className="inline-flex items-center gap-2 bg-red-500/30 backdrop-blur-sm border border-red-500/30 rounded-full px-3 py-1 mb-3 animate-pulse">
+                <div className="inline-flex items-center gap-2 bg-red-500/30 backdrop-blur-sm border border-red-500/30 rounded-full px-3 py-1 mb-3">
                   <Sparkles className="w-3 h-3 text-red-400" />
                   <span className="text-red-300 text-xs font-medium">Continue de onde parou</span>
                 </div>
@@ -162,7 +162,7 @@ export default function CoursesPage() {
                       "w-14 h-14 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center mb-2 transition-all duration-300",
                       colors.badge,
                       isCompleted && "ring-4 ring-green-500 ring-offset-2 ring-offset-slate-900",
-                      isInProgress && "ring-4 ring-red-500 ring-offset-2 ring-offset-slate-900 animate-pulse",
+                      isInProgress && "ring-4 ring-red-500 ring-offset-2 ring-offset-slate-900",
                       isLocked && "opacity-40",
                       !isLocked && "group-hover:scale-110 group-hover:shadow-lg"
                     )}>
@@ -319,8 +319,8 @@ export default function CoursesPage() {
           </div>
         </div>
 
-        {/* Courses Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Courses Grid - Cards maiores */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {filteredCourses.map((course, index) => {
             const isLocked = isCourseBlocked(course)
             const colors = getBeltColors(course.difficulty)
@@ -332,8 +332,8 @@ export default function CoursesPage() {
                 key={course.id}
                 href={isLocked ? "#" : `/cursos/${course.slug}`}
                 className={cn(
-                  "group relative aspect-[16/10] rounded-xl overflow-hidden transition-all duration-300",
-                  isLocked ? "cursor-not-allowed" : "hover:scale-[1.03] hover:z-10 hover:shadow-2xl hover:shadow-red-500/30"
+                  "group relative aspect-video rounded-xl overflow-hidden transition-all duration-300",
+                  isLocked ? "cursor-not-allowed" : "hover:shadow-2xl hover:shadow-red-500/30"
                 )}
               >
                 {/* Background */}
@@ -342,8 +342,8 @@ export default function CoursesPage() {
                   alt={course.title}
                   fill
                   className={cn(
-                    "object-cover transition-all duration-500",
-                    isLocked ? "grayscale brightness-50" : "group-hover:scale-110"
+                    "object-cover",
+                    isLocked && "grayscale brightness-50"
                   )}
                 />
                 
@@ -368,7 +368,7 @@ export default function CoursesPage() {
                 <div className="absolute top-4 right-4 flex flex-col gap-2">
                   {/* Badge GRÁTIS */}
                   {course.difficulty === "iniciante" && (
-                    <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded shadow-lg animate-pulse">
+                    <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded shadow-lg">
                       GRÁTIS
                     </span>
                   )}
