@@ -18,7 +18,9 @@ import {
   RefreshCw,
   Loader2,
   Plus,
-  Filter
+  Filter,
+  TestTube,
+  Sparkles
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +29,24 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
 
 interface EmailStats {
   total_sent: number
@@ -70,6 +90,14 @@ interface Campaign {
   created_at: string
 }
 
+// Tipos de email disponíveis
+const EMAIL_TYPES = [
+  { value: "welcome", label: "🎉 Boas-vindas", subject: "Bem-vindo(a) ao Clube do ECG!" },
+  { value: "reminder", label: "🫀 Lembrete", subject: "Continue seus estudos de ECG!" },
+  { value: "new_content", label: "✨ Novo Conteúdo", subject: "Novo conteúdo disponível!" },
+  { value: "weekly_summary", label: "📊 Resumo Semanal", subject: "Seu resumo semanal do Clube do ECG" },
+]
+
 export default function AdminEmailsPage() {
   const supabase = createClient()
   
@@ -87,6 +115,13 @@ export default function AdminEmailsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [filterType, setFilterType] = useState<string>("all")
+  
+  // Estado para o modal de teste de email
+  const [testEmailOpen, setTestEmailOpen] = useState(false)
+  const [testEmailTo, setTestEmailTo] = useState("")
+  const [testEmailType, setTestEmailType] = useState("welcome")
+  const [testEmailSubject, setTestEmailSubject] = useState("")
+  const [isSendingTest, setIsSendingTest] = useState(false)
   
   // Carregar dados
   const loadData = useCallback(async () => {
@@ -181,11 +216,65 @@ export default function AdminEmailsPage() {
         },
       })
       const data = await response.json()
-      alert(`Cron executado: ${data.message || JSON.stringify(data)}`)
+      toast.success(`Cron executado: ${data.sent || 0} emails enviados`)
       loadData()
     } catch (error) {
       console.error("Erro ao executar cron:", error)
-      alert("Erro ao executar cron")
+      toast.error("Erro ao executar cron")
+    }
+  }
+  
+  // Enviar email de teste
+  const sendTestEmail = async () => {
+    if (!testEmailTo || !testEmailType) {
+      toast.error("Preencha todos os campos")
+      return
+    }
+    
+    setIsSendingTest(true)
+    
+    try {
+      const emailTypeInfo = EMAIL_TYPES.find(t => t.value === testEmailType)
+      
+      const response = await fetch("/api/emails/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: testEmailTo,
+          type: testEmailType,
+          subject: testEmailSubject || emailTypeInfo?.subject || "Email de Teste",
+          force: true, // Força o envio mesmo com limites
+          templateData: {
+            userName: "Usuário de Teste",
+            daysInactive: 3,
+            lastCourseName: "ECG Básico",
+            lastCourseProgress: 45,
+            lastCourseSlug: "ecg-basico",
+            contentTitle: "Nova Aula: Arritmias",
+            contentType: "aula",
+            contentSlug: "arritmias",
+          },
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        toast.success(`Email enviado com sucesso! ID: ${data.resendId}`)
+        setTestEmailOpen(false)
+        setTestEmailTo("")
+        setTestEmailSubject("")
+        loadData()
+      } else {
+        toast.error(data.error || "Erro ao enviar email")
+      }
+    } catch (error) {
+      console.error("Erro ao enviar email:", error)
+      toast.error("Erro ao enviar email de teste")
+    } finally {
+      setIsSendingTest(false)
     }
   }
   
@@ -248,6 +337,79 @@ export default function AdminEmailsPage() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Atualizar
           </Button>
+          <Dialog open={testEmailOpen} onOpenChange={setTestEmailOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10">
+                <TestTube className="w-4 h-4 mr-2" />
+                Enviar Teste
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <TestTube className="w-5 h-5 text-purple-400" />
+                  Enviar Email de Teste
+                </DialogTitle>
+                <DialogDescription>
+                  Envie um email de teste para verificar se está funcionando corretamente.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="test-email">Email de Destino</Label>
+                  <Input
+                    id="test-email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={testEmailTo}
+                    onChange={(e) => setTestEmailTo(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo de Email</Label>
+                  <Select value={testEmailType} onValueChange={setTestEmailType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EMAIL_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="test-subject">Assunto (opcional)</Label>
+                  <Input
+                    id="test-subject"
+                    placeholder={EMAIL_TYPES.find(t => t.value === testEmailType)?.subject}
+                    value={testEmailSubject}
+                    onChange={(e) => setTestEmailSubject(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setTestEmailOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={sendTestEmail} disabled={isSendingTest}>
+                  {isSendingTest ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Enviar Teste
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Button onClick={runCronManually}>
             <Play className="w-4 h-4 mr-2" />
             Executar Cron
