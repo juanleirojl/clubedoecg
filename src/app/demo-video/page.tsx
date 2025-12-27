@@ -32,8 +32,8 @@ export default function DemoVideoPage() {
               try {
                 const p = new window.PandaPlayer('panda-c0c05ca6-d7d6-47cc-84ba-1cc49af5e650', {
                   onReady() {
-                    p.loadButtonInTime({ fetchApi: true })
-                    p.setParentWindowUrl()
+                    p.loadButtonInTime?.({ fetchApi: true })
+                    p.setParentWindowUrl?.()
                     p.onEvent((e) => {
                       if (e.message === 'panda_play') setIsPlaying(true)
                       if (e.message === 'panda_pause') setIsPlaying(false)
