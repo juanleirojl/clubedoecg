@@ -291,13 +291,13 @@ export default function AdminEmailsPage() {
   // Status badge
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      sent: "bg-blue-500/20 text-blue-400",
-      delivered: "bg-green-500/20 text-green-400",
-      opened: "bg-purple-500/20 text-purple-400",
-      clicked: "bg-yellow-500/20 text-yellow-400",
-      bounced: "bg-red-500/20 text-red-400",
-      failed: "bg-red-500/20 text-red-400",
-      pending: "bg-gray-500/20 text-gray-400",
+      sent: "bg-blue-100 text-blue-700",
+      delivered: "bg-green-100 text-green-700",
+      opened: "bg-purple-100 text-purple-700",
+      clicked: "bg-yellow-100 text-yellow-700",
+      bounced: "bg-red-100 text-red-700",
+      failed: "bg-red-100 text-red-700",
+      pending: "bg-gray-100 text-gray-700",
     }
     
     return (
@@ -325,12 +325,12 @@ export default function AdminEmailsPage() {
   }
   
   return (
-    <div className="space-y-6">
+    <div className="p-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Gerenciamento de Emails</h1>
-          <p className="text-gray-400">Configure e monitore o envio de emails</p>
+          <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Emails</h1>
+          <p className="text-gray-600">Configure e monitore o envio de emails</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadData}>
@@ -421,20 +421,20 @@ export default function AdminEmailsPage() {
       {config && (
         <Card className={cn(
           "border-2",
-          config.emails_enabled ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"
+          config.emails_enabled ? "border-green-500/30 bg-green-50" : "border-red-500/30 bg-red-50"
         )}>
           <CardContent className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               {config.emails_enabled ? (
-                <CheckCircle2 className="w-6 h-6 text-green-500" />
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
               ) : (
-                <XCircle className="w-6 h-6 text-red-500" />
+                <XCircle className="w-6 h-6 text-red-600" />
               )}
               <div>
-                <p className="font-medium text-white">
+                <p className="font-medium text-gray-900">
                   {config.emails_enabled ? "Emails Ativos" : "Emails Pausados"}
                 </p>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-gray-500">
                   {config.emails_sent_today}/{config.daily_limit} enviados hoje
                 </p>
               </div>
@@ -452,49 +452,49 @@ export default function AdminEmailsPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <Send className="w-6 h-6 mx-auto mb-2 text-blue-400" />
-            <p className="text-2xl font-bold text-white">{stats.total_sent}</p>
-            <p className="text-xs text-gray-400">Enviados</p>
+            <Send className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+            <p className="text-2xl font-bold text-gray-900">{stats.total_sent}</p>
+            <p className="text-xs text-gray-500">Enviados</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-4 text-center">
-            <CheckCircle2 className="w-6 h-6 mx-auto mb-2 text-green-400" />
-            <p className="text-2xl font-bold text-white">{stats.total_delivered}</p>
-            <p className="text-xs text-gray-400">Entregues</p>
+            <CheckCircle2 className="w-6 h-6 mx-auto mb-2 text-green-600" />
+            <p className="text-2xl font-bold text-gray-900">{stats.total_delivered}</p>
+            <p className="text-xs text-gray-500">Entregues</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-4 text-center">
-            <Eye className="w-6 h-6 mx-auto mb-2 text-purple-400" />
-            <p className="text-2xl font-bold text-white">{stats.total_opened}</p>
-            <p className="text-xs text-gray-400">Abertos ({openRate}%)</p>
+            <Eye className="w-6 h-6 mx-auto mb-2 text-purple-600" />
+            <p className="text-2xl font-bold text-gray-900">{stats.total_opened}</p>
+            <p className="text-xs text-gray-500">Abertos ({openRate}%)</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-4 text-center">
-            <MousePointer className="w-6 h-6 mx-auto mb-2 text-yellow-400" />
-            <p className="text-2xl font-bold text-white">{stats.total_clicked}</p>
-            <p className="text-xs text-gray-400">Clicados ({clickRate}%)</p>
+            <MousePointer className="w-6 h-6 mx-auto mb-2 text-yellow-600" />
+            <p className="text-2xl font-bold text-gray-900">{stats.total_clicked}</p>
+            <p className="text-xs text-gray-500">Clicados ({clickRate}%)</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-4 text-center">
-            <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-orange-400" />
-            <p className="text-2xl font-bold text-white">{stats.total_bounced}</p>
-            <p className="text-xs text-gray-400">Bounces</p>
+            <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-orange-600" />
+            <p className="text-2xl font-bold text-gray-900">{stats.total_bounced}</p>
+            <p className="text-xs text-gray-500">Bounces</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-4 text-center">
-            <XCircle className="w-6 h-6 mx-auto mb-2 text-red-400" />
-            <p className="text-2xl font-bold text-white">{stats.total_failed}</p>
-            <p className="text-xs text-gray-400">Falhas</p>
+            <XCircle className="w-6 h-6 mx-auto mb-2 text-red-600" />
+            <p className="text-2xl font-bold text-gray-900">{stats.total_failed}</p>
+            <p className="text-xs text-gray-500">Falhas</p>
           </CardContent>
         </Card>
       </div>
@@ -541,7 +541,7 @@ export default function AdminEmailsPage() {
                       max={23}
                       className="w-20"
                     />
-                    <span className="text-gray-400">até</span>
+                    <span className="text-gray-500">até</span>
                     <Input
                       type="number"
                       value={config.send_end_hour}
@@ -572,8 +572,8 @@ export default function AdminEmailsPage() {
                         className={cn(
                           "w-8 h-8 rounded text-sm font-medium transition-colors",
                           config.send_days.includes(index)
-                            ? "bg-primary text-white"
-                            : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                            ? "bg-red-500 text-white"
+                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                         )}
                       >
                         {day}
@@ -610,7 +610,7 @@ export default function AdminEmailsPage() {
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm"
+                  className="bg-white border border-gray-300 rounded px-2 py-1 text-sm text-gray-700"
                 >
                   <option value="all">Todos</option>
                   <option value="reminder">Lembretes</option>
@@ -628,13 +628,13 @@ export default function AdminEmailsPage() {
                 .map((email) => (
                   <div 
                     key={email.id}
-                    className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
+                      <p className="text-sm font-medium text-gray-900 truncate">
                         {email.subject}
                       </p>
-                      <p className="text-xs text-gray-400 truncate">
+                      <p className="text-xs text-gray-500 truncate">
                         {email.email_to}
                       </p>
                     </div>
@@ -682,16 +682,16 @@ export default function AdminEmailsPage() {
               {campaigns.map((campaign) => (
                 <div 
                   key={campaign.id}
-                  className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg"
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100"
                 >
                   <div>
-                    <p className="font-medium text-white">{campaign.name}</p>
-                    <p className="text-sm text-gray-400">{campaign.subject}</p>
+                    <p className="font-medium text-gray-900">{campaign.name}</p>
+                    <p className="text-sm text-gray-500">{campaign.subject}</p>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right text-sm">
-                      <p className="text-white">{campaign.total_sent} enviados</p>
-                      <p className="text-gray-400">
+                      <p className="text-gray-900">{campaign.total_sent} enviados</p>
+                      <p className="text-gray-500">
                         {campaign.total_opened} abertos 
                         ({campaign.total_sent > 0 
                           ? Math.round((campaign.total_opened / campaign.total_sent) * 100) 
@@ -705,8 +705,8 @@ export default function AdminEmailsPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <Mail className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-              <p className="text-gray-400 mb-4">Nenhuma campanha criada</p>
+              <Mail className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500 mb-4">Nenhuma campanha criada</p>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
                 Criar Primeira Campanha

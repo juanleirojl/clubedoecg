@@ -44,12 +44,15 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
       throw new Error(`Template não encontrado para tipo: ${type}`)
     }
     
-    // Enviar via Resend
+    // Enviar via Resend com tracking habilitado
     const { data, error } = await resend.emails.send({
       from: EMAIL_FROM,
       to: [to],
       subject,
       html: emailHtml,
+      headers: {
+        "X-Entity-Ref-ID": `${type}-${Date.now()}`, // ID único para evitar agrupamento do Gmail
+      },
     })
     
     if (error) {
