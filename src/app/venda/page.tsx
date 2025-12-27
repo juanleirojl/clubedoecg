@@ -167,8 +167,29 @@ export default function VendaPage() {
             em uma <strong className="text-white">decisão clínica segura</strong>.
           </p>
           
+          {/* ===== VÍDEO DE APRESENTAÇÃO ===== */}
+          <div className="mb-10 max-w-3xl mx-auto">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-red-500/20 border-2 border-[#9d1915]/30">
+              {/* Vídeo do Panda Video */}
+              <div className="relative" style={{ paddingTop: '56.25%' }}>
+                <iframe 
+                  id="panda-c0c05ca6-d7d6-47cc-84ba-1cc49af5e650" 
+                  src="https://player-vz-1ff387ab-5bf.tv.pandavideo.com.br/embed/?v=c0c05ca6-d7d6-47cc-84ba-1cc49af5e650&preload=false" 
+                  style={{ border: 'none', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" 
+                  allowFullScreen
+                />
+              </div>
+            </div>
+            
+            {/* Legenda do vídeo */}
+            <p className="text-white/50 text-sm mt-3 text-center">
+              🎬 Assista e descubra como o Método CAMPOS-ECG™ pode transformar sua prática
+            </p>
+          </div>
+          
           {/* Proposta de valor */}
-          <div className="flex flex-wrap justify-center gap-6 mb-12">
+          <div className="flex flex-wrap justify-center gap-6 mb-8">
             <div className="flex items-center gap-2 text-white/80">
               <CheckCircle2 className="w-5 h-5 text-[#7db975]" />
               <span>Sem decoreba</span>
